@@ -44,3 +44,7 @@
   [[issues.exclude-rules]]
     path = "sources-github.go"
     linters = ["gosec","nestif"]
+
+  [[issues.exclude-rules]]
+    path = "pkg/core/scrapper.go"
+    text = "Function 'process' is too long"

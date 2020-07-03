@@ -1,0 +1,11 @@
+displayName: Plugin Example
+type: middleware
+import: github.com/containous/plugintest/example
+
+compatibility: TODO
+
+summary: Simple example plugin.
+
+testData:
+  Headers:
+    Foo: Bar
