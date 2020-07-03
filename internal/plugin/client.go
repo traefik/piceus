@@ -40,7 +40,7 @@ func (c *Client) Create(p Plugin) error {
 		return fmt.Errorf("failed to marshall: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, baseURL.String()+"/", bytes.NewBuffer(data))
+	req, err := http.NewRequest(http.MethodPost, baseURL.String(), bytes.NewBuffer(data))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
