@@ -1,4 +1,4 @@
-.PHONY: clean check test build
+.PHONY: clean check test build run-service-mock
 
 TAG_NAME := $(shell git tag -l --contains HEAD)
 SHA := $(shell git rev-parse --short HEAD)
@@ -29,3 +29,6 @@ publish-latest:
 
 check:
 	golangci-lint run
+
+run-service-mock:
+	go run ./internal/stub/

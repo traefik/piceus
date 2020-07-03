@@ -15,7 +15,6 @@ piceus
 
 extra:
 
-- `PICEUS_SKIP_PERSISTENCE`: skips the call to the plugin service.
 - `PICEUS_PRIVATE_MODE`: uses GitHub instead of GoProxy.
 
 ## TODO

@@ -53,16 +53,7 @@ func main() {
 	ghClient := newGitHubClient(ctx, cfg.Token)
 	gpClient := goproxy.NewClient("")
 
-	var pgClient pluginClient
-	if _, ok := os.LookupEnv("PICEUS_SKIP_PERSISTENCE"); ok {
-		pgClient = &fakePluginClient{
-			getByName: func(name string) (*plugin.Plugin, error) {
-				return nil, errors.New("not found")
-			},
-		}
-	} else {
-		pgClient = plugin.New(cfg.PluginURL, cfg.AccessToken)
-	}
+	pgClient := plugin.New(cfg.PluginURL, cfg.AccessToken)
 
 	var srcs core.Sources
 	if _, ok := os.LookupEnv(core.PrivateModeEnv); ok {
@@ -109,32 +100,4 @@ func newGitHubClient(ctx context.Context, token string) *github.Client {
 		&oauth2.Token{AccessToken: token},
 	)
 	return github.NewClient(oauth2.NewClient(ctx, ts))
-}
-
-// ---
-
-type pluginClient interface {
-	Create(p plugin.Plugin) error
-	Update(p plugin.Plugin) error
-	GetByName(name string) (*plugin.Plugin, error)
-}
-
-type fakePluginClient struct {
-	getByName func(string) (*plugin.Plugin, error)
-}
-
-func (f *fakePluginClient) Create(p plugin.Plugin) error {
-	log.Println("Create:", p.Name)
-	log.Printf("info: %+v\n", p)
-	return nil
-}
-
-func (f *fakePluginClient) Update(p plugin.Plugin) error {
-	log.Println("Update:", p.Name)
-	log.Printf("info: %+v\n", p)
-	return nil
-}
-
-func (f *fakePluginClient) GetByName(name string) (*plugin.Plugin, error) {
-	return f.getByName(name)
 }
