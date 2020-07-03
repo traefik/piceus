@@ -23,5 +23,9 @@ image:
 publish:
 	docker push containous/piceus:$(VERSION)
 
+publish-latest:
+	docker tag containous/piceus:$(VERSION) containous/piceus:latest
+	docker push containous/piceus:latest
+
 check:
 	golangci-lint run
