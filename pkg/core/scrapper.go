@@ -119,16 +119,36 @@ func (s *Scrapper) isSkipped(ctx context.Context, repository *github.Repository)
 		return true
 	}
 
-	// https://help.github.com/en/github/searching-for-information-on-github/searching-issues-and-pull-requests
-	issues, _, err := s.gh.Search.Issues(ctx, fmt.Sprintf("repo:%s type:issue state:open in:title %s", repository.GetFullName(), issueTitle), nil)
-	if err != nil {
-		log.Println(err)
+	if s.hasIssue(ctx, repository) {
+		log.Printf("[%s] the issue is still opened.", repository.GetFullName())
 		return true
 	}
 
-	if issues.GetTotal() > 0 {
-		log.Printf("[%s] the issue is still opened.", repository.GetFullName())
-		return true
+	return false
+}
+
+func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) bool {
+	user, _, err := s.gh.Users.Get(ctx, "")
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+
+	opts := &github.IssueListByRepoOptions{
+		State:   "open",
+		Creator: user.GetLogin(),
+	}
+
+	issues, _, err := s.gh.Issues.ListByRepo(ctx, repository.GetOwner().GetLogin(), repository.GetName(), opts)
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+
+	for _, issue := range issues {
+		if issue.GetTitle() == issueTitle {
+			return true
+		}
 	}
 
 	return false
