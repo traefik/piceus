@@ -1,2 +1,14 @@
 .idea/
-
+.intellij/
+*.iml
+.vscode/
+.DS_Store
+*.log
+*.exe
+cover.out
+vendor/
+.now
+.env
+.env.build
+piceus
+.vercel
