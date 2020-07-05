@@ -30,7 +30,8 @@ func TestReadManifest(t *testing.T) {
 		Summary:       "Simple example plugin.",
 		TestData: map[string]interface{}{
 			"Headers": map[string]interface{}{
-				"Foo": "Bar"},
+				"Foo": "Bar",
+			},
 		},
 	}
 

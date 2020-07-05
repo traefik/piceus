@@ -47,7 +47,7 @@ func (s *GoProxy) Get(_ context.Context, _ *github.Repository, gop string, mod m
 	// Gets code (sources)
 
 	dest := filepath.Join(filepath.Join(gop, "src"), filepath.FromSlash(mod.Path))
-	err = os.MkdirAll(dest, 0750)
+	err = os.MkdirAll(dest, 0o750)
 	if err != nil {
 		return fmt.Errorf("failed to create sources directory: %w", err)
 	}
@@ -64,7 +64,7 @@ func (s *GoProxy) getArchive(mod module.Version, rootArchive string) (string, er
 	defer func() { _ = reader.Close() }()
 
 	archivePath := filepath.Join(rootArchive, filepath.FromSlash(mod.Path), mod.Version+".zip")
-	err = os.MkdirAll(filepath.Dir(archivePath), 0750)
+	err = os.MkdirAll(filepath.Dir(archivePath), 0o750)
 	if err != nil {
 		return "", fmt.Errorf("failed to create sources directory: %w", err)
 	}

@@ -48,7 +48,7 @@ func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop str
 	// Gets code (sources)
 
 	dest := filepath.Join(filepath.Join(gop, "src"), filepath.FromSlash(mod.Path))
-	err = os.MkdirAll(dest, 0750)
+	err = os.MkdirAll(dest, 0o750)
 	if err != nil {
 		return fmt.Errorf("failed to create sources directory: %w", err)
 	}
@@ -61,7 +61,7 @@ func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop str
 	return nil
 }
 
-func (s *GitHub) getArchive(ctx context.Context, repository *github.Repository, version string, rootArchive string) (string, error) {
+func (s *GitHub) getArchive(ctx context.Context, repository *github.Repository, version, rootArchive string) (string, error) {
 	opts := &github.RepositoryContentGetOptions{Ref: version}
 
 	link, _, err := s.Client.Repositories.GetArchiveLink(ctx, repository.GetOwner().GetLogin(), repository.GetName(), github.Zipball, opts, true)
@@ -77,7 +77,7 @@ func (s *GitHub) getArchive(ctx context.Context, repository *github.Repository, 
 	// TODO remove hardcoded github.com?
 	filename := filepath.Join(rootArchive, "github.com", filepath.FromSlash(repository.GetFullName()), version+".zip")
 
-	err = os.MkdirAll(filepath.Dir(filename), 0750)
+	err = os.MkdirAll(filepath.Dir(filename), 0o750)
 	if err != nil {
 		return "", fmt.Errorf("failed to create directory: %w", err)
 	}
@@ -129,7 +129,7 @@ func unzipFile(f *zip.File, dest string) error {
 		return os.MkdirAll(p, f.Mode())
 	}
 
-	err = os.MkdirAll(filepath.Dir(p), 0750)
+	err = os.MkdirAll(filepath.Dir(p), 0o750)
 	if err != nil {
 		return err
 	}
