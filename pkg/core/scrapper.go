@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/containous/piceus/internal/plugin"
@@ -208,6 +209,12 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	}
 
 	moduleName := mod.Module.Mod.Path
+
+	// Checks consistency
+
+	if !strings.HasPrefix(manifest.Import, moduleName) {
+		return nil, fmt.Errorf("the import %q must be related to the module name %q", manifest.Import, moduleName)
+	}
 
 	// Gets versions
 
