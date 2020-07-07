@@ -204,12 +204,19 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		return nil, err
 	}
 
-	// Gets module information
+	// Checks module information
 
-	// FIXME optional module file?
 	mod, err := s.getModuleInfo(ctx, repository, latestVersion)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, require := range mod.Require {
+		if strings.Contains(require.Mod.Path, "github.com/containous/yaegi") ||
+			strings.Contains(require.Mod.Path, "github.com/containous/traefik") ||
+			strings.Contains(require.Mod.Path, "github.com/containous/maesh") {
+			return nil, fmt.Errorf("a plugin cannot have a dependence to: %v", require.Mod.Path)
+		}
 	}
 
 	moduleName := mod.Module.Mod.Path
