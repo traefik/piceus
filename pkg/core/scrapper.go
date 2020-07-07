@@ -419,7 +419,8 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 		return nil
 	}
 
-	if cmp.Equal(data, prev, cmpopts.IgnoreFields(plugin.Plugin{}, "ID", "CreatedAt")) {
+	// Snippet is excluded temporary because of a wrong storage format.
+	if cmp.Equal(data, prev, cmpopts.IgnoreFields(plugin.Plugin{}, "ID", "CreatedAt", "Snippet")) {
 		return nil
 	}
 
