@@ -133,7 +133,7 @@ func (s *Scrapper) isSkipped(ctx context.Context, repository *github.Repository)
 func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) bool {
 	user, _, err := s.gh.Users.Get(ctx, "")
 	if err != nil {
-		log.Println(err)
+		log.Printf("failed to get current GitHub user: %v", err)
 		return false
 	}
 
@@ -144,7 +144,7 @@ func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) 
 
 	issues, _, err := s.gh.Issues.ListByRepo(ctx, repository.GetOwner().GetLogin(), repository.GetName(), opts)
 	if err != nil {
-		log.Println(err)
+		log.Printf("failed to list issues on repo %s: %v", repository.GetFullName(), err)
 		return false
 	}
 
