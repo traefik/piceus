@@ -16,6 +16,8 @@ import (
 	"github.com/containous/piceus/internal/plugin"
 	"github.com/containous/yaegi/interp"
 	"github.com/containous/yaegi/stdlib"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/go-github/v32/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/mitchellh/mapstructure"
@@ -414,6 +416,10 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 		}
 
 		log.Println("Stored:", data.Name)
+		return nil
+	}
+
+	if cmp.Equal(data, prev, cmpopts.IgnoreFields(&plugin.Plugin{}, "ID", "CreatedAt")) {
 		return nil
 	}
 
