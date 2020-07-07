@@ -26,6 +26,7 @@ func TestReadManifest(t *testing.T) {
 		DisplayName:   "Plugin Example",
 		Type:          "middleware",
 		Import:        "github.com/containous/plugintest/example",
+		BasePkg:       "example",
 		Compatibility: "TODO",
 		Summary:       "Simple example plugin.",
 		TestData: map[string]interface{}{

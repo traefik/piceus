@@ -242,7 +242,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	// Check Yaegi interface
 
 	if manifest.Type == "middleware" {
-		err = yaegiCheck(gop, manifest.Import, manifest.TestData)
+		err = yaegiCheck(gop, manifest)
 		if err != nil {
 			return nil, fmt.Errorf("failed to run with Yaegi: %w", err)
 		}
