@@ -419,7 +419,7 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 		return nil
 	}
 
-	if cmp.Equal(data, prev, cmpopts.IgnoreFields(&plugin.Plugin{}, "ID", "CreatedAt")) {
+	if cmp.Equal(data, prev, cmpopts.IgnoreFields(plugin.Plugin{}, "ID", "CreatedAt")) {
 		return nil
 	}
 
