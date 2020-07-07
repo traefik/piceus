@@ -425,7 +425,7 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 	return nil
 }
 
-func yaegiCheck(goPath, pImport string, config map[string]interface{}) error {
+func yaegiCheck(goPath string, manifest Manifest) error {
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 	ctx := context.Background()
 	middlewareName := "test"
@@ -433,19 +433,23 @@ func yaegiCheck(goPath, pImport string, config map[string]interface{}) error {
 	i := interp.New(interp.Options{GoPath: goPath})
 	i.Use(stdlib.Symbols)
 
-	_, err := i.Eval(fmt.Sprintf(`import "%s"`, pImport))
+	_, err := i.Eval(fmt.Sprintf(`import "%s"`, manifest.Import))
 	if err != nil {
 		return fmt.Errorf("plugin: failed to import plugin code: %w", err)
 	}
 
-	basePkg := path.Base(pImport)
+	basePkg := manifest.BasePkg
+	if basePkg == "" {
+		basePkg = path.Base(manifest.Import)
+		basePkg = strings.ReplaceAll(basePkg, "-", "_")
+	}
 
 	vConfig, err := i.Eval(basePkg + `.CreateConfig()`)
 	if err != nil {
 		return fmt.Errorf("plugin: failed to eval CreateConfig: %w", err)
 	}
 
-	err = mapstructure.Decode(config, vConfig.Interface())
+	err = mapstructure.Decode(manifest.TestData, vConfig.Interface())
 	if err != nil {
 		return fmt.Errorf("plugin: failed to decode configuration: %w", err)
 	}

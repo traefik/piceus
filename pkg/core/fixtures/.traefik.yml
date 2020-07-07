@@ -1,6 +1,8 @@
 displayName: Plugin Example
 type: middleware
+
 import: github.com/containous/plugintest/example
+basePkg: example
 
 compatibility: TODO
 
