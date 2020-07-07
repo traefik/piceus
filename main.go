@@ -66,7 +66,7 @@ func main() {
 
 	err = scrapper.Run(ctx)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error: %v", err)
 	}
 }
 

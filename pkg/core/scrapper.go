@@ -100,7 +100,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 			}
 			_, _, err = s.gh.Issues.Create(ctx, repository.GetOwner().GetLogin(), repository.GetName(), issue)
 			if err != nil {
-				log.Println(err)
+				log.Printf("failed to create issue: %v", err)
 			}
 
 			continue
@@ -108,7 +108,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 
 		err = s.store(data)
 		if err != nil {
-			log.Println(err)
+			log.Printf("failed to store plugin %s: %v", data.Name, err)
 		}
 	}
 
