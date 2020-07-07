@@ -38,8 +38,10 @@ const (
 	issueTitle   = "[Traefik Pilot] Traefik Plugin Analyzer has detected a problem."
 	issueContent = `The plugin was not imported into Traefik Pilot.
 
-Cause: %v
-
+Cause:
+` + "```" + `
+%v
+` + "```" + `
 Traefik Plugin Analyzer will restart when you will close this issue.
 
 If you believe there is a problem with the Analyzer or this issue is the result of a false positive, please contact [us](https://community.containo.us/).
