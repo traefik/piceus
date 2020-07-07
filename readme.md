@@ -1,5 +1,7 @@
 # Camponotus Piceus
 
+- [builds](https://pilot.semaphoreci.com/projects/piceus)
+
 ## CLI
 
 ```
@@ -21,10 +23,4 @@ extra:
 
 - [ ] define the manifest filename (`.traefik.yml`?)
 - [ ] improve issue in the plugin repo when error
-- [x] when public: replace GH by GoProxy for archive and versions.
-- [x] storage: plugins info
-- [x] storage: blacklist
-- [x] simple CLI
-- [x] get module name
-- [x] use goproxy (versions)
-- [x] use goproxy (archive)
+
