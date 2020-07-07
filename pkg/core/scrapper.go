@@ -35,8 +35,8 @@ const manifestFile = ".traefik.yml"
 const searchQuery = "topic:traefik-plugin language:Go archived:false is:private"
 
 const (
-	issueTitle   = "[Plaen] Traefik Plugin Analyzer has detected a problem."
-	issueContent = `The plugin was not imported into Plaen.
+	issueTitle   = "[Traefik Pilot] Traefik Plugin Analyzer has detected a problem."
+	issueContent = `The plugin was not imported into Traefik Pilot.
 
 Cause: %v
 
@@ -225,7 +225,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	// Creates temp GOPATH
 
-	gop, err := ioutil.TempDir("", "plaen-gop")
+	gop, err := ioutil.TempDir("", "pilot-gop")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
 	}
