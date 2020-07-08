@@ -464,6 +464,8 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 	}
 
 	data.ID = prev.ID
+	data.CreatedAt = prev.CreatedAt
+
 	err = s.pg.Update(*data)
 	if err != nil {
 		return err
