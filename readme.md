@@ -7,10 +7,10 @@
 ```
 piceus 
   -access-token string
-        Services Access Token (PLAEN_SERVICES_ACCESS_TOKEN)
+        Services Access Token (PILOT_SERVICES_ACCESS_TOKEN)
   -h    show this help
   -plugin-url string
-        Plugin service base URL (PLAEN_PLUGIN_URL)
+        Plugin service base URL (PILOT_PLUGIN_URL)
   -token string
         GitHub Token (GITHUB_TOKEN)
 ```
