@@ -1,8 +1,8 @@
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/containous/yaegi v0.8.11 h1:DQIvkLKQI+lsmPBP9q2HzwsqaI4hgK108iAm868oG6g=
-github.com/containous/yaegi v0.8.11/go.mod h1:Yj82MHpXQ9/h3ukzc2numJQ/Wr4+M3C9YLMzNjFtd3o=
+github.com/containous/yaegi v0.8.12-0.20200707100503-bc2b224bae1b h1:1lqrLpPclGMSk4YeybeMOUkzlqiEWkb4O+LOGe9w6hA=
+github.com/containous/yaegi v0.8.12-0.20200707100503-bc2b224bae1b/go.mod h1:Yj82MHpXQ9/h3ukzc2numJQ/Wr4+M3C9YLMzNjFtd3o=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
