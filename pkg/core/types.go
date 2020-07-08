@@ -14,11 +14,11 @@ type Sources interface {
 
 // Manifest The plugin manifest.
 type Manifest struct {
-	DisplayName   string                 `yaml:"displayName"`
-	Type          string                 `yaml:"type"`
-	Import        string                 `yaml:"import"`
-	BasePkg       string                 `yaml:"basePkg"`
-	Compatibility string                 `yaml:"compatibility"`
-	Summary       string                 `yaml:"summary"`
-	TestData      map[string]interface{} `yaml:"testData"`
+	DisplayName   string                 `json:"displayName,omitempty" toml:"displayName,omitempty" yaml:"displayName,omitempty"`
+	Type          string                 `json:"type,omitempty" toml:"type,omitempty" yaml:"type,omitempty"`
+	Import        string                 `json:"import,omitempty" toml:"import,omitempty" yaml:"import,omitempty"`
+	BasePkg       string                 `json:"basePkg,omitempty" toml:"basePkg,omitempty" yaml:"basePkg,omitempty"`
+	Compatibility string                 `json:"compatibility,omitempty" toml:"compatibility,omitempty" yaml:"compatibility,omitempty"`
+	Summary       string                 `json:"summary,omitempty" toml:"summary,omitempty" yaml:"summary,omitempty"`
+	TestData      map[string]interface{} `json:"testData,omitempty" toml:"testData,omitempty" yaml:"testData,omitempty"`
 }

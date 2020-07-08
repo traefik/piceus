@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-github/v32/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pelletier/go-toml"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"gopkg.in/yaml.v3"
@@ -259,6 +260,11 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		}
 	}
 
+	snippets, err := createSnippets(repository, manifest.TestData)
+	if err != nil {
+		return nil, err
+	}
+
 	return &plugin.Plugin{
 		Name:          moduleName,
 		DisplayName:   manifest.DisplayName,
@@ -271,7 +277,34 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		LatestVersion: latestVersion,
 		Versions:      versions,
 		Stars:         repository.GetStargazersCount(),
-		Snippet:       manifest.TestData,
+		Snippet:       snippets,
+	}, nil
+}
+
+func createSnippets(repository *github.Repository, testData map[string]interface{}) (map[string]interface{}, error) {
+	snip := map[string]interface{}{
+		"middlewares": map[string]interface{}{
+			"my-" + repository.GetName(): map[string]interface{}{
+				"plugin": map[string]interface{}{
+					repository.GetName(): testData,
+				},
+			},
+		},
+	}
+
+	yamlSnip, err := yaml.Marshal(snip)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
+	}
+
+	tomlSnip, err := toml.Marshal(snip)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
+	}
+
+	return map[string]interface{}{
+		"toml": string(tomlSnip),
+		"yaml": string(yamlSnip),
 	}, nil
 }
 

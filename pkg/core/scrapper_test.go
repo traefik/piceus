@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/containous/piceus/internal/plugin"
+	"github.com/google/go-github/v32/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -108,4 +109,45 @@ func (f *mockPluginClient) GetByName(name string) (*plugin.Plugin, error) {
 		return f.getByName(name)
 	}
 	return nil, nil
+}
+
+func Test_createSnippets(t *testing.T) {
+	repository := &github.Repository{
+		Name: github.String("plugintest"),
+	}
+
+	testData := map[string]interface{}{
+		"Headers": map[string]interface{}{
+			"Foo": "Bar",
+		},
+	}
+
+	snippets, err := createSnippets(repository, testData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := map[string]interface{}{
+		"toml": `
+[middlewares]
+
+  [middlewares.my-plugintest]
+
+    [middlewares.my-plugintest.plugin]
+
+      [middlewares.my-plugintest.plugin.plugintest]
+
+        [middlewares.my-plugintest.plugin.plugintest.Headers]
+          Foo = "Bar"
+`,
+		"yaml": `middlewares:
+    my-plugintest:
+        plugin:
+            plugintest:
+                Headers:
+                    Foo: Bar
+`,
+	}
+
+	assert.Equal(t, expected, snippets)
 }
