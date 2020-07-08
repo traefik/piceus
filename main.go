@@ -24,8 +24,8 @@ type config struct {
 func main() {
 	cfg := config{}
 	flag.StringVar(&cfg.Token, "token", os.Getenv("GITHUB_TOKEN"), "GitHub Token (GITHUB_TOKEN)")
-	flag.StringVar(&cfg.AccessToken, "access-token", os.Getenv("PLAEN_SERVICES_ACCESS_TOKEN"), "Services Access Token (PLAEN_SERVICES_ACCESS_TOKEN)")
-	flag.StringVar(&cfg.PluginURL, "plugin-url", os.Getenv("PLAEN_PLUGIN_URL"), "Plugin service base URL (PLAEN_PLUGIN_URL)")
+	flag.StringVar(&cfg.AccessToken, "access-token", os.Getenv("PILOT_SERVICES_ACCESS_TOKEN"), "Services Access Token (PILOT_SERVICES_ACCESS_TOKEN)")
+	flag.StringVar(&cfg.PluginURL, "plugin-url", os.Getenv("PILOT_PLUGIN_URL"), "Plugin service base URL (PILOT_PLUGIN_URL)")
 
 	help := flag.Bool("h", false, "show this help")
 
