@@ -224,7 +224,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	// Checks consistency
 
-	if !strings.HasPrefix(manifest.Import, strings.ReplaceAll(moduleName, "-", "_")) {
+	if !strings.HasPrefix(strings.ReplaceAll(manifest.Import, "-", "_"), moduleName) {
 		return nil, fmt.Errorf("the import %q must be related to the module name %q", manifest.Import, moduleName)
 	}
 
