@@ -479,7 +479,7 @@ func yaegiCheck(goPath string, manifest Manifest) error {
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	i := interp.New(interp.Options{GoPath: goPath})
