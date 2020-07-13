@@ -33,9 +33,8 @@ const PrivateModeEnv = "PICEUS_PRIVATE_MODE"
 const manifestFile = ".traefik.yml"
 
 // searchQuery the query used to search plugins on GitHub.
-// TODO const searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
 // https://help.github.com/en/github/searching-for-information-on-github/searching-for-repositories
-const searchQuery = "topic:traefik-plugin archived:false is:private"
+const searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
 
 const (
 	issueTitle   = "[Traefik Pilot] Traefik Plugin Analyzer has detected a problem."
