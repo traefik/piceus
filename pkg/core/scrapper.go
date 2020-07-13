@@ -476,14 +476,17 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 }
 
 func yaegiCheck(goPath string, manifest Manifest) error {
-	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
-	ctx := context.Background()
 	middlewareName := "test"
+
+	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
 
 	i := interp.New(interp.Options{GoPath: goPath})
 	i.Use(stdlib.Symbols)
 
-	_, err := i.Eval(fmt.Sprintf(`import "%s"`, manifest.Import))
+	_, err := i.EvalWithContext(ctx, fmt.Sprintf(`import "%s"`, manifest.Import))
 	if err != nil {
 		return fmt.Errorf("plugin: failed to import plugin code: %w", err)
 	}
@@ -494,7 +497,7 @@ func yaegiCheck(goPath string, manifest Manifest) error {
 		basePkg = strings.ReplaceAll(basePkg, "-", "_")
 	}
 
-	vConfig, err := i.Eval(basePkg + `.CreateConfig()`)
+	vConfig, err := i.EvalWithContext(ctx, basePkg+`.CreateConfig()`)
 	if err != nil {
 		return fmt.Errorf("plugin: failed to eval CreateConfig: %w", err)
 	}
@@ -504,7 +507,7 @@ func yaegiCheck(goPath string, manifest Manifest) error {
 		return fmt.Errorf("plugin: failed to decode configuration: %w", err)
 	}
 
-	fnNew, err := i.Eval(basePkg + `.New`)
+	fnNew, err := i.EvalWithContext(ctx, basePkg+`.New`)
 	if err != nil {
 		return fmt.Errorf("plugin: failed to eval New: %w", err)
 	}
