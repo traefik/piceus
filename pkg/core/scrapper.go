@@ -93,11 +93,11 @@ func (s *Scrapper) Run(ctx context.Context) error {
 			continue
 		}
 
-		log.Println(repository.GetHTMLURL())
+		log.Println("[INFO]", repository.GetHTMLURL())
 
 		data, err := s.process(ctx, repository)
 		if err != nil {
-			log.Printf("import failure: %s: %v: %s", repository.GetFullName(), err, time.Now())
+			log.Printf("[ERROR] failed to import repository %s: %v", repository.GetFullName(), err)
 
 			issue := &github.IssueRequest{
 				Title: github.String(issueTitle),
@@ -105,7 +105,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 			}
 			_, _, err = s.gh.Issues.Create(ctx, repository.GetOwner().GetLogin(), repository.GetName(), issue)
 			if err != nil {
-				log.Printf("failed to create issue: %v", err)
+				log.Printf("[ERROR] failed to create issue: %v", err)
 			}
 
 			continue
@@ -113,7 +113,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 
 		err = s.store(data)
 		if err != nil {
-			log.Printf("failed to store plugin %s: %v", data.Name, err)
+			log.Printf("[ERROR] failed to store plugin %s: %v", repository.GetFullName(), err)
 		}
 	}
 
@@ -455,7 +455,7 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 			return err
 		}
 
-		log.Println("Stored:", data.Name)
+		log.Println("[INFO]", "Stored:", data.Name)
 		return nil
 	}
 
@@ -471,7 +471,7 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 		return err
 	}
 
-	log.Println("Stored:", data.Name)
+	log.Println("[INFO]", "Updated:", data.Name)
 	return nil
 }
 
