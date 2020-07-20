@@ -58,11 +58,12 @@ type pluginClient interface {
 
 // Scrapper the plugins scrapper.
 type Scrapper struct {
-	gh        *github.Client
-	gp        *goproxy.Client
-	pg        pluginClient
-	sources   Sources
-	blacklist map[string]struct{}
+	gh          *github.Client
+	gp          *goproxy.Client
+	pg          pluginClient
+	sources     Sources
+	blacklist   map[string]struct{}
+	skipNewCall map[string]struct{} // temporary approach
 }
 
 // NewScrapper creates a new Scrapper instance.
@@ -76,6 +77,9 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, s
 		// TODO improve blacklist storage
 		blacklist: map[string]struct{}{
 			"containous/plugintestxxx": {},
+		},
+		skipNewCall: map[string]struct{}{
+			"github.com/negasus/traefik-plugin-ip2location": {},
 		},
 	}
 }
@@ -253,7 +257,9 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	// Check Yaegi interface
 
 	if manifest.Type == "middleware" {
-		err = yaegiCheck(gop, manifest)
+		_, skip := s.skipNewCall[moduleName]
+
+		err = yaegiCheck(gop, manifest, skip)
 		if err != nil {
 			return nil, fmt.Errorf("failed to run with Yaegi: %w", err)
 		}
@@ -474,7 +480,7 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 	return nil
 }
 
-func yaegiCheck(goPath string, manifest Manifest) error {
+func yaegiCheck(goPath string, manifest Manifest, skipNew bool) error {
 	middlewareName := "test"
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
@@ -522,16 +528,63 @@ func yaegiCheck(goPath string, manifest Manifest) error {
 		return fmt.Errorf("plugin: failed to eval New: %w", err)
 	}
 
-	args := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(next), vConfig, reflect.ValueOf(middlewareName)}
-	results := fnNew.Call(args)
-
-	if len(results) > 1 && results[1].Interface() != nil {
-		return fmt.Errorf("plugin: failed to create a new plugin instance: %w", results[1].Interface().(error))
+	err = checkFunctionNewSignature(fnNew, vConfig)
+	if err != nil {
+		return fmt.Errorf("the signature of the function `New` is invalid: %w", err)
 	}
 
-	_, ok := results[0].Interface().(http.Handler)
-	if !ok {
-		return fmt.Errorf("plugin: invalid handler type: %T", results[0].Interface())
+	if !skipNew {
+		args := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(next), vConfig, reflect.ValueOf(middlewareName)}
+		results := fnNew.Call(args)
+
+		if len(results) > 1 && results[1].Interface() != nil {
+			return fmt.Errorf("plugin: failed to create a new plugin instance: %w", results[1].Interface().(error))
+		}
+
+		_, ok := results[0].Interface().(http.Handler)
+		if !ok {
+			return fmt.Errorf("plugin: invalid handler type: %T", results[0].Interface())
+		}
+	}
+
+	return nil
+}
+
+func checkFunctionNewSignature(fnNew reflect.Value, vConfig reflect.Value) error {
+	// check in types
+
+	if fnNew.Type().NumIn() != 4 {
+		return fmt.Errorf("invalid input arguments: got %d arguments expected %d", fnNew.Type().NumIn(), 4)
+	}
+
+	if !fnNew.Type().In(0).Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
+		return errors.New("invalid input arguments: the 1st argument must have the type context.Context")
+	}
+
+	if !fnNew.Type().In(1).Implements(reflect.TypeOf((*http.Handler)(nil)).Elem()) {
+		return errors.New("invalid input arguments: the 2nd argument must have the type http.Handler")
+	}
+
+	if !fnNew.Type().In(2).AssignableTo(vConfig.Type()) {
+		return errors.New("invalid input arguments: the 3rd argument must have the same type as the Config structure")
+	}
+
+	if fnNew.Type().In(3).Kind() != reflect.String {
+		return errors.New("invalid input arguments: the 4th argument must have the type string")
+	}
+
+	// check out types
+
+	if fnNew.Type().NumOut() != 2 {
+		return fmt.Errorf("invalid output arguments: got %d arguments expected %d", fnNew.Type().NumOut(), 2)
+	}
+
+	if !fnNew.Type().Out(0).Implements(reflect.TypeOf((*http.Handler)(nil)).Elem()) {
+		return errors.New("invalid input arguments: the 1st argument must have the type http.Handler")
+	}
+
+	if !fnNew.Type().Out(1).Implements(reflect.TypeOf((*error)(nil)).Elem()) {
+		return errors.New("invalid input arguments: the 2nd argument must have the type error")
 	}
 
 	return nil
