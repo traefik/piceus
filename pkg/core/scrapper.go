@@ -451,6 +451,10 @@ func (s *Scrapper) getTags(ctx context.Context, repository *github.Repository) (
 }
 
 func (s *Scrapper) store(data *plugin.Plugin) error {
+	if data == nil {
+		return nil
+	}
+
 	prev, err := s.pg.GetByName(data.Name)
 	if err != nil {
 		log.Println("[INFO]", err)
