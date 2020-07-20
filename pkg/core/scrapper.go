@@ -501,7 +501,18 @@ func yaegiCheck(goPath string, manifest Manifest) error {
 		return fmt.Errorf("plugin: failed to eval CreateConfig: %w", err)
 	}
 
-	err = mapstructure.Decode(manifest.TestData, vConfig.Interface())
+	cfg := &mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToSliceHookFunc(","),
+		WeaklyTypedInput: true,
+		Result:           vConfig.Interface(),
+	}
+
+	decoder, err := mapstructure.NewDecoder(cfg)
+	if err != nil {
+		return fmt.Errorf("plugin: failed to create configuration decoder: %w", err)
+	}
+
+	err = decoder.Decode(manifest.TestData)
 	if err != nil {
 		return fmt.Errorf("plugin: failed to decode configuration: %w", err)
 	}
