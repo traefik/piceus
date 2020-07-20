@@ -507,20 +507,9 @@ func yaegiCheck(goPath string, manifest Manifest, skipNew bool) error {
 		return fmt.Errorf("plugin: failed to eval CreateConfig: %w", err)
 	}
 
-	cfg := &mapstructure.DecoderConfig{
-		DecodeHook:       mapstructure.StringToSliceHookFunc(","),
-		WeaklyTypedInput: true,
-		Result:           vConfig.Interface(),
-	}
-
-	decoder, err := mapstructure.NewDecoder(cfg)
+	err = decodeConfig(vConfig, manifest.TestData)
 	if err != nil {
-		return fmt.Errorf("plugin: failed to create configuration decoder: %w", err)
-	}
-
-	err = decoder.Decode(manifest.TestData)
-	if err != nil {
-		return fmt.Errorf("plugin: failed to decode configuration: %w", err)
+		return err
 	}
 
 	fnNew, err := i.EvalWithContext(ctx, basePkg+`.New`)
@@ -550,7 +539,27 @@ func yaegiCheck(goPath string, manifest Manifest, skipNew bool) error {
 	return nil
 }
 
-func checkFunctionNewSignature(fnNew reflect.Value, vConfig reflect.Value) error {
+func decodeConfig(vConfig reflect.Value, testData interface{}) error {
+	cfg := &mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToSliceHookFunc(","),
+		WeaklyTypedInput: true,
+		Result:           vConfig.Interface(),
+	}
+
+	decoder, err := mapstructure.NewDecoder(cfg)
+	if err != nil {
+		return fmt.Errorf("plugin: failed to create configuration decoder: %w", err)
+	}
+
+	err = decoder.Decode(testData)
+	if err != nil {
+		return fmt.Errorf("plugin: failed to decode configuration: %w", err)
+	}
+
+	return nil
+}
+
+func checkFunctionNewSignature(fnNew, vConfig reflect.Value) error {
 	// check in types
 
 	if fnNew.Type().NumIn() != 4 {
