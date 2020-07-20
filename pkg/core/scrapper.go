@@ -208,27 +208,27 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		return nil, err
 	}
 
-	// Checks module information
+	// Gets module information
 
 	mod, err := s.getModuleInfo(ctx, repository, latestVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, require := range mod.Require {
-		if strings.Contains(require.Mod.Path, "github.com/containous/yaegi") ||
-			strings.Contains(require.Mod.Path, "github.com/containous/traefik") ||
-			strings.Contains(require.Mod.Path, "github.com/containous/maesh") {
-			return nil, fmt.Errorf("a plugin cannot have a dependence to: %v", require.Mod.Path)
-		}
-	}
-
 	moduleName := mod.Module.Mod.Path
 
-	// Checks consistency
+	// skip already existing plugin
 
-	if !strings.HasPrefix(strings.ReplaceAll(manifest.Import, "-", "_"), strings.ReplaceAll(moduleName, "-", "_")) {
-		return nil, fmt.Errorf("the import %q must be related to the module name %q", manifest.Import, moduleName)
+	prev, err := s.pg.GetByName(moduleName)
+	if err == nil && prev != nil && prev.LatestVersion == latestVersion {
+		return nil, nil
+	}
+
+	// Checks module information
+
+	err = checkModuleFile(mod, manifest)
+	if err != nil {
+		return nil, err
 	}
 
 	// Gets versions
@@ -594,6 +594,22 @@ func checkFunctionNewSignature(fnNew, vConfig reflect.Value) error {
 
 	if !fnNew.Type().Out(1).Implements(reflect.TypeOf((*error)(nil)).Elem()) {
 		return errors.New("invalid input arguments: the 2nd argument must have the type error")
+	}
+
+	return nil
+}
+
+func checkModuleFile(mod *modfile.File, manifest Manifest) error {
+	for _, require := range mod.Require {
+		if strings.Contains(require.Mod.Path, "github.com/containous/yaegi") ||
+			strings.Contains(require.Mod.Path, "github.com/containous/traefik") ||
+			strings.Contains(require.Mod.Path, "github.com/containous/maesh") {
+			return fmt.Errorf("a plugin cannot have a dependence to: %v", require.Mod.Path)
+		}
+	}
+
+	if !strings.HasPrefix(strings.ReplaceAll(manifest.Import, "-", "_"), strings.ReplaceAll(mod.Module.Mod.Path, "-", "_")) {
+		return fmt.Errorf("the import %q must be related to the module name %q", manifest.Import, mod.Module.Mod.Path)
 	}
 
 	return nil
