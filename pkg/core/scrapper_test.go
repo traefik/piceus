@@ -2,12 +2,12 @@ package core
 
 import (
 	"errors"
-	"log"
 	"os"
 	"testing"
 
 	"github.com/containous/piceus/internal/plugin"
 	"github.com/google/go-github/v32/github"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -85,8 +85,8 @@ type mockPluginClient struct {
 }
 
 func (f *mockPluginClient) Create(p plugin.Plugin) error {
-	log.Println("Create:", p.Name)
-	log.Printf("info: %+v\n", p)
+	log.Info().Msgf("Create: %v", p.Name)
+	log.Info().Msgf("%+v\n", p)
 
 	if f.create != nil {
 		return f.create(p)
@@ -95,8 +95,8 @@ func (f *mockPluginClient) Create(p plugin.Plugin) error {
 }
 
 func (f *mockPluginClient) Update(p plugin.Plugin) error {
-	log.Println("Update:", p.Name)
-	log.Printf("info: %+v\n", p)
+	log.Info().Msgf("Update: %v", p.Name)
+	log.Info().Msgf("%+v\n", p)
 
 	if f.update != nil {
 		return f.update(p)
