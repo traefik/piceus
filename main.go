@@ -8,6 +8,7 @@ import (
 
 	"github.com/containous/piceus/internal/plugin"
 	"github.com/containous/piceus/pkg/core"
+	"github.com/containous/piceus/pkg/logger"
 	"github.com/containous/piceus/pkg/sources"
 	"github.com/google/go-github/v32/github"
 	"github.com/ldez/grignotin/goproxy"
@@ -36,7 +37,7 @@ func main() {
 		return
 	}
 
-	setupLogger()
+	logger.Setup()
 
 	nArgs := flag.NArg()
 	if nArgs > 0 {
@@ -47,7 +48,7 @@ func main() {
 	err := checkFlags(cfg)
 	if err != nil {
 		usage()
-		log.Fatal().Msg(err.Error())
+		log.Fatal().Err(err).Msg("error")
 	}
 
 	ctx := context.Background()
@@ -68,7 +69,7 @@ func main() {
 
 	err = scrapper.Run(ctx)
 	if err != nil {
-		log.Fatal().Msgf("%v", err)
+		log.Fatal().Err(err).Msg("error")
 	}
 }
 

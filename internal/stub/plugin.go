@@ -10,8 +10,6 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
-		log.Debug().Msgf("%v", req)
-
 		switch req.Method {
 		case http.MethodGet:
 			http.Error(rw, `{"error": "plugin not found"}`, http.StatusNotFound)
@@ -24,6 +22,6 @@ func main() {
 
 	err := http.ListenAndServe(":8666", mux)
 	if err != nil {
-		log.Fatal().Msg(err.Error())
+		log.Fatal().Err(err).Msg("error")
 	}
 }

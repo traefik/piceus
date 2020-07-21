@@ -85,8 +85,7 @@ type mockPluginClient struct {
 }
 
 func (f *mockPluginClient) Create(p plugin.Plugin) error {
-	log.Info().Msgf("Create: %v", p.Name)
-	log.Info().Msgf("%+v\n", p)
+	log.Info().Str("moduleName", p.Name).Msgf("Create: %+v", p)
 
 	if f.create != nil {
 		return f.create(p)
@@ -95,8 +94,7 @@ func (f *mockPluginClient) Create(p plugin.Plugin) error {
 }
 
 func (f *mockPluginClient) Update(p plugin.Plugin) error {
-	log.Info().Msgf("Update: %v", p.Name)
-	log.Info().Msgf("%+v\n", p)
+	log.Info().Str("moduleName", p.Name).Msgf("Update: %+v", p)
 
 	if f.update != nil {
 		return f.update(p)
