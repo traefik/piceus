@@ -1,16 +1,15 @@
 package main
 
 import (
-	"log"
 	"net/http"
+
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
-		log.Println(req)
-
 		switch req.Method {
 		case http.MethodGet:
 			http.Error(rw, `{"error": "plugin not found"}`, http.StatusNotFound)
@@ -23,6 +22,6 @@ func main() {
 
 	err := http.ListenAndServe(":8666", mux)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("error")
 	}
 }

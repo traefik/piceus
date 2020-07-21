@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -22,6 +21,7 @@ import (
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pelletier/go-toml"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"gopkg.in/yaml.v3"
@@ -96,11 +96,12 @@ func (s *Scrapper) Run(ctx context.Context) error {
 			continue
 		}
 
-		log.Println("[INFO]", repository.GetHTMLURL())
+		log.Debug().Msg(repository.GetHTMLURL())
 
 		data, err := s.process(ctx, repository)
 		if err != nil {
-			log.Printf("[ERROR] %s: failed to import repository: %v", repository.GetFullName(), err)
+			log.Error().Err(err).Str("repo", repository.GetFullName()).
+				Msg("Failed to import repository")
 
 			issue := &github.IssueRequest{
 				Title: github.String(issueTitle),
@@ -108,7 +109,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 			}
 			_, _, err = s.gh.Issues.Create(ctx, repository.GetOwner().GetLogin(), repository.GetName(), issue)
 			if err != nil {
-				log.Printf("[ERROR] %s: failed to create issue: %v", repository.GetFullName(), err)
+				log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to create issue")
 			}
 
 			continue
@@ -116,7 +117,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 
 		err = s.store(data)
 		if err != nil {
-			log.Printf("[ERROR] %s: failed to store plugin: %v", repository.GetFullName(), err)
+			log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to store plugin")
 		}
 	}
 
@@ -129,7 +130,7 @@ func (s *Scrapper) isSkipped(ctx context.Context, repository *github.Repository)
 	}
 
 	if s.hasIssue(ctx, repository) {
-		log.Printf("[INFO] %s: the issue is still opened.", repository.GetFullName())
+		log.Info().Str("repo", repository.GetFullName()).Msg("The issue is still opened.")
 		return true
 	}
 
@@ -139,7 +140,7 @@ func (s *Scrapper) isSkipped(ctx context.Context, repository *github.Repository)
 func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) bool {
 	user, _, err := s.gh.Users.Get(ctx, "")
 	if err != nil {
-		log.Printf("[ERROR] %s: failed to get current GitHub user: %v", repository.GetFullName(), err)
+		log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to get current GitHub user")
 		return false
 	}
 
@@ -150,7 +151,7 @@ func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) 
 
 	issues, _, err := s.gh.Issues.ListByRepo(ctx, repository.GetOwner().GetLogin(), repository.GetName(), opts)
 	if err != nil {
-		log.Printf("[ERROR] %s: failed to list issues on repo: %v", repository.GetFullName(), err)
+		log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to list issues on repo")
 		return false
 	}
 
@@ -457,14 +458,14 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 
 	prev, err := s.pg.GetByName(data.Name)
 	if err != nil {
-		log.Println("[INFO]", err)
+		log.Debug().Err(err).Str("moduleName", data.Name).Msg("fallback")
 
 		err = s.pg.Create(*data)
 		if err != nil {
 			return err
 		}
 
-		log.Println("[INFO]", "Stored:", data.Name)
+		log.Debug().Str("moduleName", data.Name).Msg("Stored")
 		return nil
 	}
 
@@ -480,7 +481,8 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 		return err
 	}
 
-	log.Println("[INFO]", "Updated:", data.Name)
+	log.Debug().Str("moduleName", data.Name).Msg("Updated")
+
 	return nil
 }
 
