@@ -18,9 +18,3 @@ piceus
 extra:
 
 - `PICEUS_PRIVATE_MODE`: uses GitHub instead of GoProxy.
-
-## TODO
-
-- [ ] define the manifest filename (`.traefik.yml`?)
-- [ ] improve issue in the plugin repo when error
-
