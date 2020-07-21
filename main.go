@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"log"
 	"os"
 
 	"github.com/containous/piceus/internal/plugin"
 	"github.com/containous/piceus/pkg/core"
+	"github.com/containous/piceus/pkg/logger"
 	"github.com/containous/piceus/pkg/sources"
 	"github.com/google/go-github/v32/github"
 	"github.com/ldez/grignotin/goproxy"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
 )
 
@@ -36,6 +37,8 @@ func main() {
 		return
 	}
 
+	logger.Setup()
+
 	nArgs := flag.NArg()
 	if nArgs > 0 {
 		usage()
@@ -45,7 +48,7 @@ func main() {
 	err := checkFlags(cfg)
 	if err != nil {
 		usage()
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("error")
 	}
 
 	ctx := context.Background()
@@ -66,7 +69,7 @@ func main() {
 
 	err = scrapper.Run(ctx)
 	if err != nil {
-		log.Fatalf("error: %v", err)
+		log.Fatal().Err(err).Msg("error")
 	}
 }
 
