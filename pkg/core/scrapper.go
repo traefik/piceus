@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containous/piceus/internal/plugin"
 	"github.com/containous/yaegi/interp"
 	"github.com/containous/yaegi/stdlib"
 	"github.com/google/go-cmp/cmp"
@@ -22,6 +21,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pelletier/go-toml"
 	"github.com/rs/zerolog/log"
+	"github.com/traefik/piceus/internal/plugin"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"gopkg.in/yaml.v3"

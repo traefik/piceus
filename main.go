@@ -6,13 +6,13 @@ import (
 	"flag"
 	"os"
 
-	"github.com/containous/piceus/internal/plugin"
-	"github.com/containous/piceus/pkg/core"
-	"github.com/containous/piceus/pkg/logger"
-	"github.com/containous/piceus/pkg/sources"
 	"github.com/google/go-github/v32/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
+	"github.com/traefik/piceus/internal/plugin"
+	"github.com/traefik/piceus/pkg/core"
+	"github.com/traefik/piceus/pkg/logger"
+	"github.com/traefik/piceus/pkg/sources"
 	"golang.org/x/oauth2"
 )
 
