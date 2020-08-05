@@ -5,11 +5,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/containous/piceus/internal/plugin"
 	"github.com/google/go-github/v32/github"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/traefik/piceus/internal/plugin"
 	"gopkg.in/yaml.v3"
 )
 
