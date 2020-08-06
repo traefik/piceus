@@ -18,14 +18,14 @@ build: clean
 	CGO_ENABLED=0 go build -v -ldflags '-X "main.version=${VERSION}" -X "main.commit=${SHA}" -X "main.date=${BUILD_DATE}"'
 
 image:
-	docker build -t containous/piceus:$(VERSION) .
+	docker build -t gcr.io/traefiklabs/piceus:$(VERSION) .
 
 publish:
-	docker push containous/piceus:$(VERSION)
+	docker push gcr.io/traefiklabs/piceus:$(VERSION)
 
 publish-latest:
-	docker tag containous/piceus:$(VERSION) containous/piceus:latest
-	docker push containous/piceus:latest
+	docker tag gcr.io/traefiklabs/piceus:$(VERSION) gcr.io/traefiklabs/piceus:latest
+	docker push gcr.io/traefiklabs/piceus:latest
 
 check:
 	golangci-lint run
