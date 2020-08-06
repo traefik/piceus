@@ -1,4 +1,4 @@
-module github.com/containous/piceus
+module github.com/traefik/piceus
 
 go 1.14
 
