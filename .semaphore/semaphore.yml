@@ -21,7 +21,12 @@ global_job_config:
     - name: gomod-proxy
   prologue:
     commands:
-      - sem-version go 1.14
+      # semaphoreCI use a bi-weekly rolling updates but it's not enough
+      # https://docs.semaphoreci.com/reference/semaphore-changelog/
+      # so it's not possible to use sem-version.
+      # - sem-version go 1.14
+      - curl -sSfL https://raw.githubusercontent.com/ldez/semgo/master/godownloader.sh | sudo sh -s -- -b "/usr/local/bin"
+      - sudo semgo go1.15
       - export "GOPATH=$(go env GOPATH)"
       - export "SEMAPHORE_GIT_DIR=${GOPATH}/src/github.com/traefik/${SEMAPHORE_PROJECT_NAME}"
       - export "PATH=${GOPATH}/bin:${PATH}"

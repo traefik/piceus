@@ -3,7 +3,7 @@ module github.com/traefik/piceus
 go 1.14
 
 require (
-	github.com/containous/yaegi v0.8.13
+	github.com/containous/yaegi v0.8.14
 	github.com/google/go-cmp v0.5.0
 	github.com/google/go-github/v32 v32.0.0
 	github.com/ldez/grignotin v0.4.0
