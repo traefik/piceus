@@ -12,6 +12,16 @@ import (
 	"time"
 )
 
+// APIError an API error.
+type APIError struct {
+	StatusCode int
+	Message    string
+}
+
+func (a *APIError) Error() string {
+	return fmt.Sprintf("%d: %s", a.StatusCode, a.Message)
+}
+
 // Client for the plugin service.
 type Client struct {
 	baseURL     string
@@ -58,7 +68,11 @@ func (c *Client) Create(p Plugin) error {
 
 	if resp.StatusCode/100 != 2 {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("%d: %s", resp.StatusCode, string(body))
+
+		return &APIError{
+			Message:    string(body),
+			StatusCode: resp.StatusCode,
+		}
 	}
 
 	return nil
@@ -103,7 +117,10 @@ func (c *Client) Update(p Plugin) error {
 
 	if resp.StatusCode/100 != 2 {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("%d: %s", resp.StatusCode, string(body))
+		return &APIError{
+			Message:    string(body),
+			StatusCode: resp.StatusCode,
+		}
 	}
 
 	return nil
@@ -142,7 +159,10 @@ func (c *Client) GetByName(name string) (*Plugin, error) {
 	}
 
 	if resp.StatusCode/100 != 2 {
-		return nil, fmt.Errorf("%d: %s", resp.StatusCode, string(body))
+		return nil, &APIError{
+			Message:    string(body),
+			StatusCode: resp.StatusCode,
+		}
 	}
 
 	var plgs []Plugin

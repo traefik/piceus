@@ -1,7 +1,7 @@
 package core
 
 import (
-	"errors"
+	"net/http"
 	"os"
 	"testing"
 
@@ -49,7 +49,7 @@ func TestScrapper_store(t *testing.T) {
 			desc: "create",
 			pgClient: &mockPluginClient{
 				getByName: func(name string) (*plugin.Plugin, error) {
-					return nil, errors.New("NOPE")
+					return nil, &plugin.APIError{StatusCode: http.StatusNotFound, Message: "not found"}
 				},
 			},
 		},
