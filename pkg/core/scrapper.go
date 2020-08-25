@@ -458,15 +458,20 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 
 	prev, err := s.pg.GetByName(data.Name)
 	if err != nil {
-		log.Debug().Err(err).Str("moduleName", data.Name).Msg("fallback")
+		var notFoundError *plugin.APIError
+		if errors.As(err, &notFoundError) && err.(*plugin.APIError).StatusCode == http.StatusNotFound {
+			log.Debug().Err(err).Str("moduleName", data.Name).Msg("fallback")
 
-		err = s.pg.Create(*data)
-		if err != nil {
-			return err
+			err = s.pg.Create(*data)
+			if err != nil {
+				return err
+			}
+
+			log.Info().Str("moduleName", data.Name).Msg("Stored")
+			return nil
 		}
 
-		log.Debug().Str("moduleName", data.Name).Msg("Stored")
-		return nil
+		return fmt.Errorf("API error on %s: %w", data.Name, err)
 	}
 
 	if cmp.Equal(data, prev, cmpopts.IgnoreFields(plugin.Plugin{}, "ID", "CreatedAt")) {
