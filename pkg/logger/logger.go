@@ -12,7 +12,7 @@ import (
 func Setup() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
-	log.Logger = log.With().Caller().Logger()
+	log.Logger = zerolog.New(os.Stderr).With().Caller().Logger()
 
 	rawLevel := strings.ToLower(os.Getenv("LOG_LEVEL"))
 
