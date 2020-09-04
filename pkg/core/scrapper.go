@@ -486,7 +486,7 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 		return err
 	}
 
-	log.Debug().Str("moduleName", data.Name).Msg("Updated")
+	log.Info().Str("moduleName", data.Name).Str("latestVersion", data.LatestVersion).Msg("Updated")
 
 	return nil
 }
