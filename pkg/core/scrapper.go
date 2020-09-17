@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containous/yaegi/interp"
-	"github.com/containous/yaegi/stdlib"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/go-github/v32/github"
@@ -22,6 +20,8 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/piceus/internal/plugin"
+	"github.com/traefik/yaegi/interp"
+	"github.com/traefik/yaegi/stdlib"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"gopkg.in/yaml.v3"
@@ -614,7 +614,10 @@ func checkModuleFile(mod *modfile.File, manifest Manifest) error {
 	for _, require := range mod.Require {
 		if strings.Contains(require.Mod.Path, "github.com/containous/yaegi") ||
 			strings.Contains(require.Mod.Path, "github.com/containous/traefik") ||
-			strings.Contains(require.Mod.Path, "github.com/containous/maesh") {
+			strings.Contains(require.Mod.Path, "github.com/containous/maesh") ||
+			strings.Contains(require.Mod.Path, "github.com/traefik/yaegi") ||
+			strings.Contains(require.Mod.Path, "github.com/traefik/traefik") ||
+			strings.Contains(require.Mod.Path, "github.com/traefik/mesh") {
 			return fmt.Errorf("a plugin cannot have a dependence to: %v", require.Mod.Path)
 		}
 	}
