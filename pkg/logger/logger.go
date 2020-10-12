@@ -17,10 +17,8 @@ func Setup() {
 	rawLevel := strings.ToLower(os.Getenv("LOG_LEVEL"))
 
 	logLevel, err := zerolog.ParseLevel(rawLevel)
-	if err != nil {
+	if err != nil || rawLevel == "" {
 		logLevel = zerolog.InfoLevel
-
-		log.Debug().Err(err).Str("LOG_LEVEL", rawLevel).Msg("Unspecified or invalid log level, setting the level to default (INFO)...")
 	}
 
 	zerolog.SetGlobalLevel(logLevel)
