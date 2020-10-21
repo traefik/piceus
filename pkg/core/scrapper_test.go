@@ -13,6 +13,37 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type mockPluginClient struct {
+	create    func(p plugin.Plugin) error
+	update    func(p plugin.Plugin) error
+	getByName func(string) (*plugin.Plugin, error)
+}
+
+func (f *mockPluginClient) Create(p plugin.Plugin) error {
+	log.Info().Str("moduleName", p.Name).Msgf("Create: %+v", p)
+
+	if f.create != nil {
+		return f.create(p)
+	}
+	return nil
+}
+
+func (f *mockPluginClient) Update(p plugin.Plugin) error {
+	log.Info().Str("moduleName", p.Name).Msgf("Update: %+v", p)
+
+	if f.update != nil {
+		return f.update(p)
+	}
+	return nil
+}
+
+func (f *mockPluginClient) GetByName(name string) (*plugin.Plugin, error) {
+	if f.getByName != nil {
+		return f.getByName(name)
+	}
+	return nil, nil
+}
+
 func TestReadManifest(t *testing.T) {
 	file, err := os.Open("./fixtures/" + manifestFile)
 	require.NoError(t, err)
@@ -76,37 +107,6 @@ func TestScrapper_store(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
-}
-
-type mockPluginClient struct {
-	create    func(p plugin.Plugin) error
-	update    func(p plugin.Plugin) error
-	getByName func(string) (*plugin.Plugin, error)
-}
-
-func (f *mockPluginClient) Create(p plugin.Plugin) error {
-	log.Info().Str("moduleName", p.Name).Msgf("Create: %+v", p)
-
-	if f.create != nil {
-		return f.create(p)
-	}
-	return nil
-}
-
-func (f *mockPluginClient) Update(p plugin.Plugin) error {
-	log.Info().Str("moduleName", p.Name).Msgf("Update: %+v", p)
-
-	if f.update != nil {
-		return f.update(p)
-	}
-	return nil
-}
-
-func (f *mockPluginClient) GetByName(name string) (*plugin.Plugin, error) {
-	if f.getByName != nil {
-		return f.getByName(name)
-	}
-	return nil, nil
 }
 
 func Test_createSnippets(t *testing.T) {
