@@ -56,7 +56,7 @@ func (c *Client) Create(p Plugin) error {
 	}
 
 	if c.accessToken != "" {
-		req.Header.Add("Authorization", "Bearer "+c.accessToken)
+		req.Header.Set("Authorization", "Bearer "+c.accessToken)
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -105,7 +105,7 @@ func (c *Client) Update(p Plugin) error {
 	}
 
 	if c.accessToken != "" {
-		req.Header.Add("Authorization", "Bearer "+c.accessToken)
+		req.Header.Set("Authorization", "Bearer "+c.accessToken)
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -143,7 +143,7 @@ func (c *Client) GetByName(name string) (*Plugin, error) {
 	}
 
 	if c.accessToken != "" {
-		req.Header.Add("Authorization", "Bearer "+c.accessToken)
+		req.Header.Set("Authorization", "Bearer "+c.accessToken)
 	}
 
 	resp, err := c.httpClient.Do(req)
