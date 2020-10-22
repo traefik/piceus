@@ -221,7 +221,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	// skip already existing plugin
 
 	prev, err := s.pg.GetByName(moduleName)
-	if err == nil && prev != nil && prev.LatestVersion == latestVersion {
+	if err == nil && prev != nil && prev.LatestVersion == latestVersion && prev.Stars == repository.GetStargazersCount() {
 		return nil, nil
 	}
 
