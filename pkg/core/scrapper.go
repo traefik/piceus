@@ -279,6 +279,8 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Import:        manifest.Import,
 		Compatibility: manifest.Compatibility,
 		Summary:       manifest.Summary,
+		IconURL:       manifest.IconURL,
+		BannerURL:     manifest.BannerURL,
 		Readme:        readme,
 		LatestVersion: latestVersion,
 		Versions:      versions,
