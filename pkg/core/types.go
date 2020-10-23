@@ -20,5 +20,7 @@ type Manifest struct {
 	BasePkg       string                 `json:"basePkg,omitempty" toml:"basePkg,omitempty" yaml:"basePkg,omitempty"`
 	Compatibility string                 `json:"compatibility,omitempty" toml:"compatibility,omitempty" yaml:"compatibility,omitempty"`
 	Summary       string                 `json:"summary,omitempty" toml:"summary,omitempty" yaml:"summary,omitempty"`
+	IconURL       string                 `json:"iconUrl,omitempty" toml:"iconUrl,omitempty" yaml:"iconUrl,omitempty"`
+	BannerURL     string                 `json:"bannerUrl,omitempty" toml:"bannerUrl,omitempty" yaml:"bannerUrl,omitempty"`
 	TestData      map[string]interface{} `json:"testData,omitempty" toml:"testData,omitempty" yaml:"testData,omitempty"`
 }
