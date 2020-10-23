@@ -8,6 +8,9 @@ compatibility: TODO
 
 summary: Simple example plugin.
 
+iconUrl: icon.png
+bannerUrl: http://example.org/a/banner.png
+
 testData:
   Headers:
     Foo: Bar
