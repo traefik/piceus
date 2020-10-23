@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"reflect"
@@ -279,6 +280,8 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Import:        manifest.Import,
 		Compatibility: manifest.Compatibility,
 		Summary:       manifest.Summary,
+		IconURL:       manifest.IconPath,
+		BannerURL:     manifest.BannerPath,
 		Readme:        readme,
 		LatestVersion: latestVersion,
 		Versions:      versions,
@@ -351,6 +354,10 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 		return Manifest{}, fmt.Errorf("failed to get manifest: %w", err)
 	}
 
+	return s.loadManifestContent(contents)
+}
+
+func (s *Scrapper) loadManifestContent(contents *github.RepositoryContent) (Manifest, error) {
 	content, err := contents.GetContent()
 	if err != nil {
 		return Manifest{}, fmt.Errorf("failed to get manifest content: %w", err)
@@ -376,6 +383,20 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 
 	if m.Summary == "" {
 		return Manifest{}, errors.New("missing Summary")
+	}
+
+	pict, err := url.Parse(m.IconPath)
+	if err != nil {
+		m.IconPath = ""
+	} else {
+		m.IconPath = path.Clean(pict.EscapedPath())
+	}
+
+	pict, err = url.Parse(m.BannerPath)
+	if err != nil {
+		m.BannerPath = ""
+	} else {
+		m.BannerPath = path.Clean(pict.EscapedPath())
 	}
 
 	if m.TestData == nil {
