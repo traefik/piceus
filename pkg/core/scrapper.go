@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"reflect"
@@ -205,7 +206,12 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	// Gets manifestFile
 
-	manifest, err := s.loadManifest(ctx, repository, latestVersion)
+	contents, err := s.loadManifestFromGH(ctx, repository, latestVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	manifest, err := s.loadManifest(contents)
 	if err != nil {
 		return nil, err
 	}
@@ -280,6 +286,8 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Import:        manifest.Import,
 		Compatibility: manifest.Compatibility,
 		Summary:       manifest.Summary,
+		IconURL:       manifest.IconURL,
+		BannerURL:     manifest.BannerURL,
 		Readme:        readme,
 		LatestVersion: latestVersion,
 		Versions:      versions,
@@ -340,18 +348,22 @@ func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Reposit
 	return mod, nil
 }
 
-func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Repository, version string) (Manifest, error) {
+func (s *Scrapper) loadManifestFromGH(ctx context.Context, repository *github.Repository, version string) (*github.RepositoryContent, error) {
 	opts := &github.RepositoryContentGetOptions{Ref: version}
 
 	contents, _, resp, err := s.gh.Repositories.GetContents(ctx, repository.GetOwner().GetLogin(), repository.GetName(), manifestFile, opts)
 	if resp != nil && resp.StatusCode == 404 {
-		return Manifest{}, fmt.Errorf("missing manifest: %w", err)
+		return nil, fmt.Errorf("missing manifest: %w", err)
 	}
 
 	if err != nil {
-		return Manifest{}, fmt.Errorf("failed to get manifest: %w", err)
+		return nil, fmt.Errorf("failed to get manifest: %w", err)
 	}
 
+	return contents, nil
+}
+
+func (s *Scrapper) loadManifest(contents *github.RepositoryContent) (Manifest, error) {
 	content, err := contents.GetContent()
 	if err != nil {
 		return Manifest{}, fmt.Errorf("failed to get manifest content: %w", err)
@@ -377,6 +389,20 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 
 	if m.Summary == "" {
 		return Manifest{}, errors.New("missing Summary")
+	}
+
+	pict, err := url.Parse(m.IconURL)
+	if err != nil {
+		m.IconURL = ""
+	} else {
+		m.IconURL = path.Clean(pict.EscapedPath())
+	}
+
+	pict, err = url.Parse(m.BannerURL)
+	if err != nil {
+		m.BannerURL = ""
+	} else {
+		m.BannerURL = path.Clean(pict.EscapedPath())
 	}
 
 	if m.TestData == nil {
