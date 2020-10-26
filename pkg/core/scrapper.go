@@ -459,7 +459,7 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 	prev, err := s.pg.GetByName(data.Name)
 	if err != nil {
 		var notFoundError *plugin.APIError
-		if errors.As(err, &notFoundError) && err.(*plugin.APIError).StatusCode == http.StatusNotFound {
+		if errors.As(err, &notFoundError) && notFoundError.StatusCode == http.StatusNotFound {
 			log.Debug().Err(err).Str("moduleName", data.Name).Msg("fallback")
 
 			err = s.pg.Create(*data)
