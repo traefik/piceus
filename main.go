@@ -79,7 +79,7 @@ func checkFlags(cfg config) error {
 	}
 
 	if cfg.PluginURL == "" {
-		return errors.New("missing plugin service UR")
+		return errors.New("missing plugin service URL")
 	}
 
 	if cfg.AccessToken == "" {
