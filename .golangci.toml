@@ -35,6 +35,9 @@
     "godox",
     "noctx",
     "nlreturn",
+    "wrapcheck",
+    "exhaustivestruct",
+    "tparallel",
   ]
 
 [issues]
