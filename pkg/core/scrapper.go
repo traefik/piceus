@@ -558,7 +558,7 @@ func yaegiCheck(goPath string, manifest Manifest, skipNew bool) error {
 func safeFnCall(fn reflect.Value, args []reflect.Value) (result []reflect.Value, errCall error) {
 	defer func() {
 		if err := recover(); err != nil {
-			errCall = fmt.Errorf("panic during the call of the funtion: %v", err)
+			errCall = fmt.Errorf("panic during the call of the function: %v", err)
 		}
 	}()
 
