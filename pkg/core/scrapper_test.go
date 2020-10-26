@@ -1,6 +1,7 @@
 package core
 
 import (
+	"io/ioutil"
 	"net/http"
 	"os"
 	"testing"
@@ -44,7 +45,7 @@ func (f *mockPluginClient) GetByName(name string) (*plugin.Plugin, error) {
 	return nil, nil
 }
 
-func TestReadManifest(t *testing.T) {
+func TestReadManifestTags(t *testing.T) {
 	file, err := os.Open("./fixtures/" + manifestFile)
 	require.NoError(t, err)
 
@@ -62,7 +63,43 @@ func TestReadManifest(t *testing.T) {
 		Compatibility: "TODO",
 		Summary:       "Simple example plugin.",
 		IconURL:       "icon.png",
-		BannerURL:     "banner.png",
+		BannerURL:     "http://example.org/a/banner.png",
+		TestData: map[string]interface{}{
+			"Headers": map[string]interface{}{
+				"Foo": "Bar",
+			},
+		},
+	}
+
+	assert.Equal(t, expected, m)
+}
+
+func TestReadManifest(t *testing.T) {
+	file, err := os.Open("./fixtures/" + manifestFile)
+	require.NoError(t, err)
+
+	defer func() { _ = file.Close() }()
+
+	b, err := ioutil.ReadAll(file)
+	require.NoError(t, err)
+	c := string(b)
+
+	contents := github.RepositoryContent{}
+	contents.Content = &c
+
+	s := Scrapper{}
+	m, err := s.loadManifest(&contents)
+	require.NoError(t, err)
+
+	expected := Manifest{
+		DisplayName:   "Plugin Example",
+		Type:          "middleware",
+		Import:        "github.com/containous/plugintest/example",
+		BasePkg:       "example",
+		Compatibility: "TODO",
+		Summary:       "Simple example plugin.",
+		IconURL:       "icon.png",
+		BannerURL:     "/a/banner.png",
 		TestData: map[string]interface{}{
 			"Headers": map[string]interface{}{
 				"Foo": "Bar",
