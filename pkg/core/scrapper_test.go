@@ -61,6 +61,8 @@ func TestReadManifest(t *testing.T) {
 		BasePkg:       "example",
 		Compatibility: "TODO",
 		Summary:       "Simple example plugin.",
+		IconURL:       "icon.png",
+		BannerURL:     "banner.png",
 		TestData: map[string]interface{}{
 			"Headers": map[string]interface{}{
 				"Foo": "Bar",

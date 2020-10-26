@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"reflect"
@@ -279,6 +280,8 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Import:        manifest.Import,
 		Compatibility: manifest.Compatibility,
 		Summary:       manifest.Summary,
+		IconURL:       manifest.IconURL,
+		BannerURL:     manifest.BannerURL,
 		Readme:        readme,
 		LatestVersion: latestVersion,
 		Versions:      versions,
@@ -376,6 +379,20 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 
 	if m.Summary == "" {
 		return Manifest{}, errors.New("missing Summary")
+	}
+
+	pict, err := url.Parse(m.IconURL)
+	if err != nil {
+		m.IconURL = ""
+	} else {
+		m.IconURL = path.Clean(pict.EscapedPath())
+	}
+
+	pict, err = url.Parse(m.BannerURL)
+	if err != nil {
+		m.BannerURL = ""
+	} else {
+		m.BannerURL = path.Clean(pict.EscapedPath())
 	}
 
 	if m.TestData == nil {
