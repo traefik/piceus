@@ -76,8 +76,7 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, s
 
 		// TODO improve blacklist storage
 		blacklist: map[string]struct{}{
-			"containous/plugintestxxx":            {},
-			"pvalletbo/traefik-forwarded-real-ip": {},
+			"containous/plugintestxxx": {},
 		},
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
@@ -538,7 +537,10 @@ func yaegiCheck(goPath string, manifest Manifest, skipNew bool) error {
 
 	if !skipNew {
 		args := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(next), vConfig, reflect.ValueOf(middlewareName)}
-		results := fnNew.Call(args)
+		results, err := safeFnCall(fnNew, args)
+		if err != nil {
+			return fmt.Errorf("the function `New` of %s produce a panic: %w", middlewareName, err)
+		}
 
 		if len(results) > 1 && results[1].Interface() != nil {
 			return fmt.Errorf("plugin: failed to create a new plugin instance: %w", results[1].Interface().(error))
@@ -551,6 +553,18 @@ func yaegiCheck(goPath string, manifest Manifest, skipNew bool) error {
 	}
 
 	return nil
+}
+
+func safeFnCall(fn reflect.Value, args []reflect.Value) (result []reflect.Value, errCall error) {
+	defer func() {
+		if err := recover(); err != nil {
+			errCall = fmt.Errorf("panic during the call of the funtion: %v", err)
+		}
+	}()
+
+	result = fn.Call(args)
+
+	return
 }
 
 func decodeConfig(vConfig reflect.Value, testData interface{}) error {
