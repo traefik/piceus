@@ -354,17 +354,16 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 		return Manifest{}, fmt.Errorf("failed to get manifest: %w", err)
 	}
 
-	return s.loadManifestContent(contents)
-}
-
-func (s *Scrapper) loadManifestContent(contents *github.RepositoryContent) (Manifest, error) {
 	content, err := contents.GetContent()
 	if err != nil {
 		return Manifest{}, fmt.Errorf("failed to get manifest content: %w", err)
 	}
+	return s.loadManifestContent(&content)
+}
 
+func (s *Scrapper) loadManifestContent(content *string) (Manifest, error) {
 	m := Manifest{}
-	err = yaml.Unmarshal([]byte(content), &m)
+	err := yaml.Unmarshal([]byte(*content), &m)
 	if err != nil {
 		return Manifest{}, fmt.Errorf("failed to read manifest content: %w", err)
 	}

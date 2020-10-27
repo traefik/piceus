@@ -84,11 +84,8 @@ func TestReadManifestContent(t *testing.T) {
 	require.NoError(t, err)
 	c := string(b)
 
-	contents := github.RepositoryContent{}
-	contents.Content = &c
-
 	s := Scrapper{}
-	m, err := s.loadManifestContent(&contents)
+	m, err := s.loadManifestContent(&c)
 	require.NoError(t, err)
 
 	expected := Manifest{
