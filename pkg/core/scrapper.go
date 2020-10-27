@@ -346,7 +346,9 @@ func parseImageURL(repository *github.Repository, latestVersion string, imgPath 
 		return ""
 	}
 
-	pictURL, err := baseURL.Parse(path.Join(baseURL.Path, "raw", latestVersion, path.Clean(img.Path)))
+	baseURL.Host = "raw.githubusercontent.com"
+
+	pictURL, err := baseURL.Parse(path.Join(baseURL.Path, latestVersion, path.Clean(img.Path)))
 	if err != nil {
 		return ""
 	}

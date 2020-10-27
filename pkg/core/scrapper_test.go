@@ -192,12 +192,12 @@ func Test_parseImageURL(t *testing.T) {
 		{
 			desc:     "relative path with .",
 			imgPath:  "./docs/content/assets/img/traefik.logo.png",
-			expected: "https://github.com/traefik/traefik/raw/v2.0.0/docs/content/assets/img/traefik.logo.png",
+			expected: "https://raw.githubusercontent.com/traefik/traefik/v2.0.0/docs/content/assets/img/traefik.logo.png",
 		},
 		{
 			desc:     "relative path",
 			imgPath:  "docs/content/assets/img/traefik.logo.png",
-			expected: "https://github.com/traefik/traefik/raw/v2.0.0/docs/content/assets/img/traefik.logo.png",
+			expected: "https://raw.githubusercontent.com/traefik/traefik/v2.0.0/docs/content/assets/img/traefik.logo.png",
 		},
 	}
 
