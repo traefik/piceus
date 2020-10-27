@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/traefik/piceus/internal/plugin"
-	"gopkg.in/yaml.v3"
 )
 
 type mockPluginClient struct {
@@ -43,35 +42,6 @@ func (f *mockPluginClient) GetByName(name string) (*plugin.Plugin, error) {
 		return f.getByName(name)
 	}
 	return nil, nil
-}
-
-func TestReadManifest(t *testing.T) {
-	file, err := os.Open("./fixtures/" + manifestFile)
-	require.NoError(t, err)
-
-	defer func() { _ = file.Close() }()
-
-	m := Manifest{}
-	err = yaml.NewDecoder(file).Decode(&m)
-	require.NoError(t, err)
-
-	expected := Manifest{
-		DisplayName:   "Plugin Example",
-		Type:          "middleware",
-		Import:        "github.com/containous/plugintest/example",
-		BasePkg:       "example",
-		Compatibility: "TODO",
-		Summary:       "Simple example plugin.",
-		IconPath:      "icon.png",
-		BannerPath:    "http://example.org/a/banner.png",
-		TestData: map[string]interface{}{
-			"Headers": map[string]interface{}{
-				"Foo": "Bar",
-			},
-		},
-	}
-
-	assert.Equal(t, expected, m)
 }
 
 func Test_loadManifestContent(t *testing.T) {
