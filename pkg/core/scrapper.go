@@ -280,8 +280,8 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Import:        manifest.Import,
 		Compatibility: manifest.Compatibility,
 		Summary:       manifest.Summary,
-		IconURL:       manifest.IconPath,
-		BannerURL:     manifest.BannerPath,
+		IconURL:       createPictureURL(repository, latestVersion, manifest.IconPath),
+		BannerURL:     createPictureURL(repository, latestVersion, manifest.BannerPath),
 		Readme:        readme,
 		LatestVersion: latestVersion,
 		Versions:      versions,
@@ -315,6 +315,17 @@ func createSnippets(repository *github.Repository, testData map[string]interface
 		"toml": string(tomlSnip),
 		"yaml": string(yamlSnip),
 	}, nil
+}
+
+func createPictureURL(repository *github.Repository, latestVersion, pictPath string) string {
+	u, err := url.Parse(repository.GetHTMLURL())
+	if err != nil {
+		return ""
+	}
+
+	u.Path = path.Join(u.Path, "/raw/"+latestVersion+"/"+pictPath)
+
+	return u.String()
 }
 
 func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Repository, version string) (*modfile.File, error) {
