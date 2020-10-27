@@ -184,3 +184,61 @@ func Test_createSnippets(t *testing.T) {
 
 	assert.Equal(t, expected, snippets)
 }
+
+func Test_parseImageURL(t *testing.T) {
+	repo := &github.Repository{
+		Owner: &github.User{
+			Login: github.String("traefik"),
+		},
+		Name:    github.String("traefik"),
+		HTMLURL: github.String("https://github.com/traefik/traefik/"),
+	}
+
+	testCases := []struct {
+		desc     string
+		imgPath  string
+		expected string
+	}{
+		{
+			desc:     "empty image path",
+			imgPath:  "",
+			expected: "",
+		},
+		{
+			desc:     "full URL with /raw",
+			imgPath:  "https://github.com/traefik/traefik/raw/v2.0.0/docs/content/assets/img/traefik.logo.png",
+			expected: "https://github.com/traefik/traefik/raw/v2.0.0/docs/content/assets/img/traefik.logo.png",
+		},
+		{
+			desc:     "full URL with raw.githubusercontent.com",
+			imgPath:  "https://raw.githubusercontent.com/traefik/traefik/master/docs/content/assets/img/traefik.logo.png",
+			expected: "https://raw.githubusercontent.com/traefik/traefik/master/docs/content/assets/img/traefik.logo.png",
+		},
+		{
+			desc:     "invalid host",
+			imgPath:  "https://example.com/traefik/traefik/master/docs/content/assets/img/traefik.logo.png",
+			expected: "",
+		},
+		{
+			desc:     "relative path with .",
+			imgPath:  "./docs/content/assets/img/traefik.logo.png",
+			expected: "https://github.com/traefik/traefik/raw/v2.0.0/docs/content/assets/img/traefik.logo.png",
+		},
+		{
+			desc:     "relative path",
+			imgPath:  "docs/content/assets/img/traefik.logo.png",
+			expected: "https://github.com/traefik/traefik/raw/v2.0.0/docs/content/assets/img/traefik.logo.png",
+		},
+	}
+
+	for _, test := range testCases {
+		test := test
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
+
+			imgURL := parseImageURL(repo, "v2.0.0", test.imgPath)
+
+			assert.Equal(t, test.expected, imgURL)
+		})
+	}
+}
