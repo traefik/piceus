@@ -275,6 +275,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Name:          moduleName,
 		DisplayName:   manifest.DisplayName,
 		Author:        repository.GetOwner().GetLogin(),
+		RepoName:      repository.GetName(),
 		Type:          manifest.Type,
 		Import:        manifest.Import,
 		Compatibility: manifest.Compatibility,
