@@ -318,6 +318,10 @@ func createSnippets(repository *github.Repository, testData map[string]interface
 }
 
 func parseImageURL(repository *github.Repository, latestVersion string, imgPath string) string {
+	if imgPath == "" {
+		return ""
+	}
+
 	img, err := url.Parse(imgPath)
 	if err != nil {
 		return ""
