@@ -333,6 +333,10 @@ func parseImageURL(repository *github.Repository, latestVersion string, imgPath 
 		return imgPath
 	}
 
+	if img.Host != "" {
+		return ""
+	}
+
 	baseURL, err := url.Parse(repository.GetHTMLURL())
 	if err != nil {
 		return ""
