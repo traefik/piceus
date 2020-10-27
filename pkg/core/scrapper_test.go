@@ -95,7 +95,7 @@ func TestReadManifestContent(t *testing.T) {
 		Compatibility: "TODO",
 		Summary:       "Simple example plugin.",
 		IconPath:      "icon.png",
-		BannerPath:    "/a/banner.png",
+		BannerPath:    "http://example.org/a/banner.png",
 		TestData: map[string]interface{}{
 			"Headers": map[string]interface{}{
 				"Foo": "Bar",
