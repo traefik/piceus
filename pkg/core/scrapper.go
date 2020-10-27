@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"reflect"
@@ -279,6 +280,8 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Import:        manifest.Import,
 		Compatibility: manifest.Compatibility,
 		Summary:       manifest.Summary,
+		IconURL:       createPictureURL(repository, latestVersion, manifest.IconPath),
+		BannerURL:     createPictureURL(repository, latestVersion, manifest.BannerPath),
 		Readme:        readme,
 		LatestVersion: latestVersion,
 		Versions:      versions,
@@ -312,6 +315,17 @@ func createSnippets(repository *github.Repository, testData map[string]interface
 		"toml": string(tomlSnip),
 		"yaml": string(yamlSnip),
 	}, nil
+}
+
+func createPictureURL(repository *github.Repository, latestVersion, pictPath string) string {
+	u, err := url.Parse(repository.GetHTMLURL())
+	if err != nil {
+		return ""
+	}
+
+	u.Path = path.Join(u.Path, "/raw/"+latestVersion+"/"+pictPath)
+
+	return u.String()
 }
 
 func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Repository, version string) (*modfile.File, error) {
@@ -355,9 +369,12 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 	if err != nil {
 		return Manifest{}, fmt.Errorf("failed to get manifest content: %w", err)
 	}
+	return s.loadManifestContent(&content)
+}
 
+func (s *Scrapper) loadManifestContent(content *string) (Manifest, error) {
 	m := Manifest{}
-	err = yaml.Unmarshal([]byte(content), &m)
+	err := yaml.Unmarshal([]byte(*content), &m)
 	if err != nil {
 		return Manifest{}, fmt.Errorf("failed to read manifest content: %w", err)
 	}
@@ -376,6 +393,20 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 
 	if m.Summary == "" {
 		return Manifest{}, errors.New("missing Summary")
+	}
+
+	pict, err := url.Parse(m.IconPath)
+	if err != nil {
+		m.IconPath = ""
+	} else {
+		m.IconPath = path.Clean(pict.EscapedPath())
+	}
+
+	pict, err = url.Parse(m.BannerPath)
+	if err != nil {
+		m.BannerPath = ""
+	} else {
+		m.BannerPath = path.Clean(pict.EscapedPath())
 	}
 
 	if m.TestData == nil {
