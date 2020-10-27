@@ -12,6 +12,8 @@ type Plugin struct {
 	Import        string                 `json:"import,omitempty"`
 	Compatibility string                 `json:"compatibility,omitempty"`
 	Summary       string                 `json:"summary,omitempty"`
+	IconURL       string                 `json:"iconUrl,omitempty"`
+	BannerURL     string                 `json:"bannerUrl,omitempty"`
 	Readme        string                 `json:"readme,omitempty"`
 	LatestVersion string                 `json:"latestVersion,omitempty"`
 	Versions      []string               `json:"versions,omitempty"`
