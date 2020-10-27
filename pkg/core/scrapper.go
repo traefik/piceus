@@ -280,8 +280,8 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Import:        manifest.Import,
 		Compatibility: manifest.Compatibility,
 		Summary:       manifest.Summary,
-		IconURL:       manifest.IconPath,
-		BannerURL:     manifest.BannerPath,
+		IconURL:       parseImageURL(repository, latestVersion, manifest.IconPath),
+		BannerURL:     parseImageURL(repository, latestVersion, manifest.BannerPath),
 		Readme:        readme,
 		LatestVersion: latestVersion,
 		Versions:      versions,
@@ -315,6 +315,35 @@ func createSnippets(repository *github.Repository, testData map[string]interface
 		"toml": string(tomlSnip),
 		"yaml": string(yamlSnip),
 	}, nil
+}
+
+func parseImageURL(repository *github.Repository, latestVersion string, imgPath string) string {
+	img, err := url.Parse(imgPath)
+	if err != nil {
+		return ""
+	}
+
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s", repository.GetOwner().GetLogin(), repository.GetName())
+	if strings.HasPrefix(imgPath, rawURL) {
+		return imgPath
+	}
+
+	rawURL = fmt.Sprintf("https://github.com/%s/%s/raw/", repository.GetOwner().GetLogin(), repository.GetName())
+	if strings.HasPrefix(imgPath, rawURL) {
+		return imgPath
+	}
+
+	baseURL, err := url.Parse(repository.GetHTMLURL())
+	if err != nil {
+		return ""
+	}
+
+	pictURL, err := baseURL.Parse(path.Join(baseURL.Path, "raw", latestVersion, path.Clean(img.Path)))
+	if err != nil {
+		return ""
+	}
+
+	return pictURL.String()
 }
 
 func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Repository, version string) (*modfile.File, error) {
@@ -354,17 +383,17 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 		return Manifest{}, fmt.Errorf("failed to get manifest: %w", err)
 	}
 
-	return s.loadManifestContent(contents)
-}
-
-func (s *Scrapper) loadManifestContent(contents *github.RepositoryContent) (Manifest, error) {
 	content, err := contents.GetContent()
 	if err != nil {
 		return Manifest{}, fmt.Errorf("failed to get manifest content: %w", err)
 	}
 
+	return s.loadManifestContent(content)
+}
+
+func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 	m := Manifest{}
-	err = yaml.Unmarshal([]byte(content), &m)
+	err := yaml.Unmarshal([]byte(content), &m)
 	if err != nil {
 		return Manifest{}, fmt.Errorf("failed to read manifest content: %w", err)
 	}
@@ -383,20 +412,6 @@ func (s *Scrapper) loadManifestContent(contents *github.RepositoryContent) (Mani
 
 	if m.Summary == "" {
 		return Manifest{}, errors.New("missing Summary")
-	}
-
-	pict, err := url.Parse(m.IconPath)
-	if err != nil {
-		m.IconPath = ""
-	} else {
-		m.IconPath = path.Clean(pict.EscapedPath())
-	}
-
-	pict, err = url.Parse(m.BannerPath)
-	if err != nil {
-		m.BannerPath = ""
-	} else {
-		m.BannerPath = path.Clean(pict.EscapedPath())
 	}
 
 	if m.TestData == nil {
