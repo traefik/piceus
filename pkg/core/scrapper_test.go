@@ -74,7 +74,7 @@ func TestReadManifest(t *testing.T) {
 	assert.Equal(t, expected, m)
 }
 
-func TestReadManifestContent(t *testing.T) {
+func Test_loadManifestContent(t *testing.T) {
 	file, err := os.Open("./fixtures/" + manifestFile)
 	require.NoError(t, err)
 
