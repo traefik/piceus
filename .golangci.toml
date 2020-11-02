@@ -54,3 +54,7 @@
   [[issues.exclude-rules]]
     path = "pkg/core/scrapper.go"
     text = "Function 'process' is too long"
+
+  [[issues.exclude-rules]]
+    path = "pkg/core/scrapper.go"
+    text = "Function 'process' has too many statements"

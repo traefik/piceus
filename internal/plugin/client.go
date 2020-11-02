@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"net/url"
 	"path"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // APIError an API error.
@@ -33,13 +36,13 @@ type Client struct {
 func New(baseURL, accessToken string) *Client {
 	return &Client{
 		baseURL:     baseURL,
-		httpClient:  &http.Client{Timeout: 10 * time.Second},
+		httpClient:  &http.Client{Timeout: 10 * time.Second, Transport: otelhttp.NewTransport(http.DefaultTransport)},
 		accessToken: accessToken,
 	}
 }
 
 // Create creates a plugin.
-func (c *Client) Create(p Plugin) error {
+func (c *Client) Create(ctx context.Context, p Plugin) error {
 	baseURL, err := url.Parse(c.baseURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse base URL: %w", err)
@@ -50,7 +53,7 @@ func (c *Client) Create(p Plugin) error {
 		return fmt.Errorf("failed to marshall: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, baseURL.String(), bytes.NewBuffer(data))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL.String(), bytes.NewBuffer(data))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -79,7 +82,7 @@ func (c *Client) Create(p Plugin) error {
 }
 
 // Update updates a plugin.
-func (c *Client) Update(p Plugin) error {
+func (c *Client) Update(ctx context.Context, p Plugin) error {
 	if p.ID == "" {
 		return errors.New("missing plugin ID")
 	}
@@ -99,7 +102,7 @@ func (c *Client) Update(p Plugin) error {
 		return fmt.Errorf("failed to marshall: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPut, endpoint.String(), bytes.NewBuffer(data))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, endpoint.String(), bytes.NewBuffer(data))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -127,7 +130,7 @@ func (c *Client) Update(p Plugin) error {
 }
 
 // GetByName gets a plugin by name.
-func (c *Client) GetByName(name string) (*Plugin, error) {
+func (c *Client) GetByName(ctx context.Context, name string) (*Plugin, error) {
 	baseURL, err := url.Parse(c.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse base URL: %w", err)
@@ -137,7 +140,7 @@ func (c *Client) GetByName(name string) (*Plugin, error) {
 	query.Set("name", name)
 	baseURL.RawQuery = query.Encode()
 
-	req, err := http.NewRequest(http.MethodGet, baseURL.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

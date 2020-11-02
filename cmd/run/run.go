@@ -10,13 +10,25 @@ import (
 	"github.com/traefik/piceus/internal/plugin"
 	"github.com/traefik/piceus/pkg/core"
 	"github.com/traefik/piceus/pkg/sources"
+	"github.com/traefik/piceus/pkg/tracer"
 	"github.com/urfave/cli/v2"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/oauth2"
 )
 
 // Run executes Piceus scrapper.
 func Run(ctx *cli.Context) error {
 	c := context.Background()
+
+	exporter, err := tracer.NewJaegerExporter(ctx.String("tracing-endpoint"), ctx.String("tracing-username"), ctx.String("tracing-password"))
+	if err != nil {
+		log.Error().Err(err).Msg("Unable to configure new exporter.")
+		return err
+	}
+	defer exporter.Flush()
+
+	bsp := tracer.Setup(exporter, ctx.Float64("tracing-probability"))
+	defer bsp.Shutdown()
 
 	ghClient := newGitHubClient(c, ctx.String("github-token"))
 	gpClient := goproxy.NewClient("")
@@ -32,12 +44,7 @@ func Run(ctx *cli.Context) error {
 
 	scrapper := core.NewScrapper(ghClient, gpClient, pgClient, srcs)
 
-	err := scrapper.Run(c)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to run scrapper")
-	}
-
-	return nil
+	return scrapper.Run(c)
 }
 
 func newGitHubClient(ctx context.Context, token string) *github.Client {
@@ -48,5 +55,9 @@ func newGitHubClient(ctx context.Context, token string) *github.Client {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
-	return github.NewClient(oauth2.NewClient(ctx, ts))
+
+	client := oauth2.NewClient(ctx, ts)
+	client.Transport = otelhttp.NewTransport(client.Transport)
+
+	return github.NewClient(client)
 }
