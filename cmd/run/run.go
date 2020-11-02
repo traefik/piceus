@@ -17,23 +17,23 @@ import (
 )
 
 // Run executes Piceus scrapper.
-func Run(ctx *cli.Context) error {
-	c := context.Background()
+func Run(c *cli.Context) error {
+	ctx := context.Background()
 
-	exporter, err := tracer.NewJaegerExporter(ctx.String("tracing-endpoint"), ctx.String("tracing-username"), ctx.String("tracing-password"))
+	exporter, err := tracer.NewJaegerExporter(c.String("tracing-endpoint"), c.String("tracing-username"), c.String("tracing-password"))
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to configure new exporter.")
 		return err
 	}
 	defer exporter.Flush()
 
-	bsp := tracer.Setup(exporter, ctx.Float64("tracing-probability"))
+	bsp := tracer.Setup(exporter, c.Float64("tracing-probability"))
 	defer bsp.Shutdown()
 
-	ghClient := newGitHubClient(c, ctx.String("github-token"))
+	ghClient := newGitHubClient(ctx, c.String("github-token"))
 	gpClient := goproxy.NewClient("")
 
-	pgClient := plugin.New(ctx.String("plugin-url"), ctx.String("services-access-token"))
+	pgClient := plugin.New(c.String("plugin-url"), c.String("services-access-token"))
 
 	var srcs core.Sources
 	if _, ok := os.LookupEnv(core.PrivateModeEnv); ok {
@@ -44,7 +44,7 @@ func Run(ctx *cli.Context) error {
 
 	scrapper := core.NewScrapper(ghClient, gpClient, pgClient, srcs)
 
-	return scrapper.Run(c)
+	return scrapper.Run(ctx)
 }
 
 func newGitHubClient(ctx context.Context, token string) *github.Client {
