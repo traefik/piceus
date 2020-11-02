@@ -23,6 +23,8 @@ import (
 	"github.com/traefik/piceus/internal/plugin"
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
+	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/trace"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"gopkg.in/yaml.v3"
@@ -52,9 +54,9 @@ If you believe there is a problem with the Analyzer or this issue is the result 
 )
 
 type pluginClient interface {
-	Create(p plugin.Plugin) error
-	Update(p plugin.Plugin) error
-	GetByName(name string) (*plugin.Plugin, error)
+	Create(ctx context.Context, p plugin.Plugin) error
+	Update(ctx context.Context, p plugin.Plugin) error
+	GetByName(ctx context.Context, name string) (*plugin.Plugin, error)
 }
 
 // Scrapper the plugins scrapper.
@@ -65,6 +67,7 @@ type Scrapper struct {
 	sources     Sources
 	blacklist   map[string]struct{}
 	skipNewCall map[string]struct{} // temporary approach
+	tracer      trace.Tracer
 }
 
 // NewScrapper creates a new Scrapper instance.
@@ -82,13 +85,19 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, s
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
 		},
+
+		tracer: global.Tracer("scrapper"),
 	}
 }
 
 // Run runs the scrapper.
 func (s *Scrapper) Run(ctx context.Context) error {
+	ctx, span := s.tracer.Start(ctx, "scrapper_run")
+	defer span.End()
+
 	repositories, err := s.search(ctx)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return err
 	}
 
@@ -110,14 +119,16 @@ func (s *Scrapper) Run(ctx context.Context) error {
 			}
 			_, _, err = s.gh.Issues.Create(ctx, repository.GetOwner().GetLogin(), repository.GetName(), issue)
 			if err != nil {
+				span.RecordError(ctx, err)
 				log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to create issue")
 			}
 
 			continue
 		}
 
-		err = s.store(data)
+		err = s.store(ctx, data)
 		if err != nil {
+			span.RecordError(ctx, err)
 			log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to store plugin")
 		}
 	}
@@ -139,8 +150,12 @@ func (s *Scrapper) isSkipped(ctx context.Context, repository *github.Repository)
 }
 
 func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) bool {
+	ctx, span := s.tracer.Start(ctx, "scrapper_hasIssue_"+*repository.Name)
+	defer span.End()
+
 	user, _, err := s.gh.Users.Get(ctx, "")
 	if err != nil {
+		span.RecordError(ctx, err)
 		log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to get current GitHub user")
 		return false
 	}
@@ -152,6 +167,7 @@ func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) 
 
 	issues, _, err := s.gh.Issues.ListByRepo(ctx, repository.GetOwner().GetLogin(), repository.GetName(), opts)
 	if err != nil {
+		span.RecordError(ctx, err)
 		log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to list issues on repo")
 		return false
 	}
@@ -166,6 +182,9 @@ func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) 
 }
 
 func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
+	ctx, span := s.tracer.Start(ctx, "scrapper_search")
+	defer span.End()
+
 	opts := &github.SearchOptions{
 		Sort:        "updated",
 		ListOptions: github.ListOptions{PerPage: 100},
@@ -176,6 +195,7 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 	for {
 		repositories, resp, err := s.gh.Search.Repositories(ctx, searchQuery, opts)
 		if err != nil {
+			span.RecordError(ctx, err)
 			return nil, err
 		}
 
@@ -191,8 +211,12 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 }
 
 func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (*plugin.Plugin, error) {
+	ctx, span := s.tracer.Start(ctx, "scrapper_process_"+*repository.Name)
+	defer span.End()
+
 	latestVersion, err := s.getLatestTag(ctx, repository)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, fmt.Errorf("failed to get the latest tag: %w", err)
 	}
 
@@ -200,6 +224,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	readme, err := s.loadReadme(ctx, repository, latestVersion)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, fmt.Errorf("failed to get readme: %w", err)
 	}
 
@@ -207,6 +232,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	manifest, err := s.loadManifest(ctx, repository, latestVersion)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, err
 	}
 
@@ -214,6 +240,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	mod, err := s.getModuleInfo(ctx, repository, latestVersion)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, err
 	}
 
@@ -221,7 +248,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	// skip already existing plugin
 
-	prev, err := s.pg.GetByName(moduleName)
+	prev, err := s.pg.GetByName(ctx, moduleName)
 	if err == nil && prev != nil && prev.LatestVersion == latestVersion && prev.Stars == repository.GetStargazersCount() {
 		return nil, nil
 	}
@@ -230,6 +257,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	err = checkModuleFile(mod, manifest)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, err
 	}
 
@@ -237,6 +265,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	versions, err := s.getVersions(ctx, repository, moduleName)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, err
 	}
 
@@ -244,6 +273,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	gop, err := ioutil.TempDir("", "pilot-gop")
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
 	}
 
@@ -253,6 +283,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	err = s.sources.Get(ctx, repository, gop, module.Version{Path: moduleName, Version: latestVersion})
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, fmt.Errorf("failed to get sources: %w", err)
 	}
 
@@ -269,6 +300,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	snippets, err := createSnippets(repository, manifest.TestData)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, err
 	}
 
@@ -358,24 +390,31 @@ func parseImageURL(repository *github.Repository, latestVersion string, imgPath 
 }
 
 func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Repository, version string) (*modfile.File, error) {
+	ctx, span := s.tracer.Start(ctx, "scrapper_getModuleInfo")
+	defer span.End()
+
 	opts := &github.RepositoryContentGetOptions{Ref: version}
 
 	contents, _, resp, err := s.gh.Repositories.GetContents(ctx, repository.GetOwner().GetLogin(), repository.GetName(), "go.mod", opts)
 	if resp != nil && resp.StatusCode == 404 {
+		span.RecordError(ctx, fmt.Errorf("missing manifest: %w", err))
 		return nil, fmt.Errorf("missing manifest: %w", err)
 	}
 
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, err
 	}
 
 	content, err := contents.GetContent()
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, err
 	}
 
 	mod, err := modfile.Parse("go.mod", []byte(content), nil)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, err
 	}
 
@@ -383,19 +422,25 @@ func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Reposit
 }
 
 func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Repository, version string) (Manifest, error) {
+	ctx, span := s.tracer.Start(ctx, "scrapper_loadManifest")
+	defer span.End()
+
 	opts := &github.RepositoryContentGetOptions{Ref: version}
 
 	contents, _, resp, err := s.gh.Repositories.GetContents(ctx, repository.GetOwner().GetLogin(), repository.GetName(), manifestFile, opts)
 	if resp != nil && resp.StatusCode == 404 {
+		span.RecordError(ctx, fmt.Errorf("missing manifest: %w", err))
 		return Manifest{}, fmt.Errorf("missing manifest: %w", err)
 	}
 
 	if err != nil {
+		span.RecordError(ctx, err)
 		return Manifest{}, fmt.Errorf("failed to get manifest: %w", err)
 	}
 
 	content, err := contents.GetContent()
 	if err != nil {
+		span.RecordError(ctx, err)
 		return Manifest{}, fmt.Errorf("failed to get manifest content: %w", err)
 	}
 
@@ -433,15 +478,20 @@ func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 }
 
 func (s *Scrapper) loadReadme(ctx context.Context, repository *github.Repository, version string) (string, error) {
+	ctx, span := s.tracer.Start(ctx, "scrapper_loadReadme")
+	defer span.End()
+
 	opts := &github.RepositoryContentGetOptions{Ref: version}
 
 	readme, _, err := s.gh.Repositories.GetReadme(ctx, repository.GetOwner().GetLogin(), repository.GetName(), opts)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return "", fmt.Errorf("failed to get readme: %w", err)
 	}
 
 	content, err := readme.GetContent()
 	if err != nil {
+		span.RecordError(ctx, err)
 		return "", fmt.Errorf("failed to get manifest content: %w", err)
 	}
 
@@ -449,12 +499,17 @@ func (s *Scrapper) loadReadme(ctx context.Context, repository *github.Repository
 }
 
 func (s *Scrapper) getLatestTag(ctx context.Context, repository *github.Repository) (string, error) {
+	ctx, span := s.tracer.Start(ctx, "scrapper_getLatestTag")
+	defer span.End()
+
 	tags, err := s.getTags(ctx, repository)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return "", err
 	}
 
 	if len(tags) == 0 {
+		span.RecordError(ctx, fmt.Errorf("missing tag/version"))
 		return "", errors.New("missing tag/version")
 	}
 
@@ -462,6 +517,9 @@ func (s *Scrapper) getLatestTag(ctx context.Context, repository *github.Reposito
 }
 
 func (s *Scrapper) getVersions(ctx context.Context, repository *github.Repository, moduleName string) ([]string, error) {
+	ctx, span := s.tracer.Start(ctx, "scrapper_getVersions")
+	defer span.End()
+
 	var versions []string
 	var err error
 
@@ -472,10 +530,12 @@ func (s *Scrapper) getVersions(ctx context.Context, repository *github.Repositor
 	}
 
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, err
 	}
 
 	if len(versions) == 0 {
+		span.RecordError(ctx, fmt.Errorf("missing tag/version"))
 		return nil, errors.New("missing tags/versions")
 	}
 
@@ -483,8 +543,12 @@ func (s *Scrapper) getVersions(ctx context.Context, repository *github.Repositor
 }
 
 func (s *Scrapper) getTags(ctx context.Context, repository *github.Repository) ([]string, error) {
+	ctx, span := s.tracer.Start(ctx, "scrapper_getTags")
+	defer span.End()
+
 	tags, _, err := s.gh.Repositories.ListTags(ctx, repository.GetOwner().GetLogin(), repository.GetName(), nil)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return nil, fmt.Errorf("failed to get versions: %w", err)
 	}
 
@@ -498,18 +562,23 @@ func (s *Scrapper) getTags(ctx context.Context, repository *github.Repository) (
 	return result, nil
 }
 
-func (s *Scrapper) store(data *plugin.Plugin) error {
+func (s *Scrapper) store(ctx context.Context, data *plugin.Plugin) error {
 	if data == nil {
 		return nil
 	}
 
-	prev, err := s.pg.GetByName(data.Name)
+	ctx, span := s.tracer.Start(ctx, "scrapper_store_"+data.Name)
+	defer span.End()
+
+	prev, err := s.pg.GetByName(ctx, data.Name)
 	if err != nil {
+		span.RecordError(ctx, err)
+
 		var notFoundError *plugin.APIError
 		if errors.As(err, &notFoundError) && notFoundError.StatusCode == http.StatusNotFound {
 			log.Debug().Err(err).Str("moduleName", data.Name).Msg("fallback")
 
-			err = s.pg.Create(*data)
+			err = s.pg.Create(ctx, *data)
 			if err != nil {
 				return err
 			}
@@ -528,8 +597,9 @@ func (s *Scrapper) store(data *plugin.Plugin) error {
 	data.ID = prev.ID
 	data.CreatedAt = prev.CreatedAt
 
-	err = s.pg.Update(*data)
+	err = s.pg.Update(ctx, *data)
 	if err != nil {
+		span.RecordError(ctx, err)
 		return err
 	}
 
