@@ -1,106 +1,55 @@
 package main
 
 import (
-	"context"
-	"errors"
-	"flag"
 	"os"
 
-	"github.com/google/go-github/v32/github"
-	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
-	"github.com/traefik/piceus/internal/plugin"
-	"github.com/traefik/piceus/pkg/core"
-	"github.com/traefik/piceus/pkg/logger"
-	"github.com/traefik/piceus/pkg/sources"
-	"golang.org/x/oauth2"
+	"github.com/traefik/piceus/cmd/run"
+	"github.com/urfave/cli/v2"
 )
 
-type config struct {
-	Token       string
-	AccessToken string
-	PluginURL   string
-}
-
 func main() {
-	cfg := config{}
-	flag.StringVar(&cfg.Token, "token", os.Getenv("GITHUB_TOKEN"), "GitHub Token (GITHUB_TOKEN)")
-	flag.StringVar(&cfg.AccessToken, "access-token", os.Getenv("PILOT_SERVICES_ACCESS_TOKEN"), "Services Access Token (PILOT_SERVICES_ACCESS_TOKEN)")
-	flag.StringVar(&cfg.PluginURL, "plugin-url", os.Getenv("PILOT_PLUGIN_URL"), "Plugin service base URL (PILOT_PLUGIN_URL)")
-
-	help := flag.Bool("h", false, "show this help")
-
-	flag.Usage = usage
-	flag.Parse()
-	if *help {
-		usage()
-		return
+	app := &cli.App{
+		Name:  "Piceus CLI",
+		Usage: "Run piceus",
+		Commands: []*cli.Command{
+			runCommand(),
+		},
 	}
 
-	logger.Setup()
-
-	nArgs := flag.NArg()
-	if nArgs > 0 {
-		usage()
-		return
-	}
-
-	err := checkFlags(cfg)
+	err := app.Run(os.Args)
 	if err != nil {
-		usage()
-		log.Fatal().Err(err).Msg("error")
-	}
-
-	ctx := context.Background()
-
-	ghClient := newGitHubClient(ctx, cfg.Token)
-	gpClient := goproxy.NewClient("")
-
-	pgClient := plugin.New(cfg.PluginURL, cfg.AccessToken)
-
-	var srcs core.Sources
-	if _, ok := os.LookupEnv(core.PrivateModeEnv); ok {
-		srcs = &sources.GitHub{Client: ghClient}
-	} else {
-		srcs = &sources.GoProxy{Client: gpClient}
-	}
-
-	scrapper := core.NewScrapper(ghClient, gpClient, pgClient, srcs)
-
-	err = scrapper.Run(ctx)
-	if err != nil {
-		log.Fatal().Err(err).Msg("error")
+		log.Fatal().Err(err).Msg("Error while executing command")
 	}
 }
 
-func checkFlags(cfg config) error {
-	if cfg.Token == "" {
-		return errors.New("missing GitHub Token")
+func runCommand() *cli.Command {
+	cmd := &cli.Command{
+		Name:        "run",
+		Usage:       "Run Piceus",
+		Description: "Launch application piceus",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "github-token",
+				Usage:    "GitHub Token.",
+				EnvVars:  []string{"GITHUB_TOKEN"},
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "services-access-token",
+				Usage:    "Pilot Services Access Token",
+				EnvVars:  []string{"PILOT_SERVICES_ACCESS_TOKEN"},
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "plugin-url",
+				Usage:    "Plugin Service URL",
+				EnvVars:  []string{"PILOT_PLUGIN_URL"},
+				Required: true,
+			},
+		},
+		Action: run.Run,
 	}
 
-	if cfg.PluginURL == "" {
-		return errors.New("missing plugin service URL")
-	}
-
-	if cfg.AccessToken == "" {
-		return errors.New("missing plugin service access token")
-	}
-
-	return nil
-}
-
-func usage() {
-	_, _ = os.Stderr.WriteString("piceus \n")
-	flag.PrintDefaults()
-}
-
-func newGitHubClient(ctx context.Context, token string) *github.Client {
-	if len(token) == 0 {
-		return github.NewClient(nil)
-	}
-
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
-	)
-	return github.NewClient(oauth2.NewClient(ctx, ts))
+	return cmd
 }

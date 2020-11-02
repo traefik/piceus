@@ -11,6 +11,7 @@ require (
 	github.com/rs/zerolog v1.20.0
 	github.com/stretchr/testify v1.6.1
 	github.com/traefik/yaegi v0.9.4
+	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/mod v0.3.0
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
