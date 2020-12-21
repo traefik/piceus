@@ -10,7 +10,7 @@ require (
 	github.com/pelletier/go-toml v1.8.1
 	github.com/rs/zerolog v1.20.0
 	github.com/stretchr/testify v1.6.1
-	github.com/traefik/yaegi v0.9.6
+	github.com/traefik/yaegi v0.9.8
 	github.com/urfave/cli/v2 v2.3.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.13.0
 	go.opentelemetry.io/otel v0.13.0
