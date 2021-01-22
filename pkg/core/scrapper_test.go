@@ -57,7 +57,7 @@ func Test_loadManifestContent(t *testing.T) {
 			expected: Manifest{
 				DisplayName:   "Plugin Example",
 				Type:          "middleware",
-				Import:        "github.com/containous/plugintest/example",
+				Import:        "github.com/traefik/plugintest/example",
 				BasePkg:       "example",
 				Compatibility: "TODO",
 				Summary:       "Simple example plugin.",
@@ -76,7 +76,7 @@ func Test_loadManifestContent(t *testing.T) {
 			expected: Manifest{
 				DisplayName:   "Plugin Example",
 				Type:          "provider",
-				Import:        "github.com/containous/plugintest/example",
+				Import:        "github.com/traefik/plugintest/example",
 				BasePkg:       "example",
 				Compatibility: "TODO",
 				Summary:       "Simple example plugin.",
