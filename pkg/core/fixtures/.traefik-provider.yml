@@ -1,7 +1,7 @@
 displayName: Plugin Example
-type: middleware
+type: provider
 
-import: github.com/containous/plugintest/example
+import: github.com/traefik/plugintest/example
 basePkg: example
 
 compatibility: TODO
@@ -12,5 +12,4 @@ iconPath: icon.png
 bannerPath: http://example.org/a/banner.png
 
 testData:
-  Headers:
-    Foo: Bar
+  Foo: Bar
