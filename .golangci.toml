@@ -20,6 +20,9 @@
   [linters-settings.misspell]
     locale = "US"
 
+  [linters-settings.godox]
+    keywords = ["FIXME"]
+
 [linters]
   enable-all = true
   disable = [
@@ -28,16 +31,15 @@
     "dupl",
     "gosec",
     "wsl",
+    "nlreturn",
     "gomnd",
     "testpackage",
-    "goerr113",
-    "godox",
-    "godox",
-    "noctx",
-    "nlreturn",
-    "wrapcheck",
-    "exhaustivestruct",
+    "paralleltest",
     "tparallel",
+    "goerr113",
+    "wrapcheck",
+    "noctx",
+    "exhaustivestruct",
   ]
 
 [issues]
@@ -47,6 +49,11 @@
   exclude = [
     "ST1000: at least one file in a package should have a package comment"
   ]
+
+  [[issues.exclude-rules]]
+    path = "(.+)_test.go"
+    linters = ["goconst", "funlen", "godot"]
+
   [[issues.exclude-rules]]
     path = "sources-github.go"
     linters = ["gosec","nestif"]
