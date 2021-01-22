@@ -35,6 +35,11 @@ const PrivateModeEnv = "PICEUS_PRIVATE_MODE"
 
 const manifestFile = ".traefik.yml"
 
+const (
+	typeMiddleware = "middleware"
+	typeProvider   = "provider"
+)
+
 // searchQuery the query used to search plugins on GitHub.
 // https://help.github.com/en/github/searching-for-information-on-github/searching-for-repositories
 const searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
@@ -288,17 +293,12 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	}
 
 	// Check Yaegi interface
-
-	if manifest.Type == "middleware" {
-		_, skip := s.skipNewCall[moduleName]
-
-		err = yaegiCheck(gop, manifest, skip)
-		if err != nil {
-			return nil, fmt.Errorf("failed to run with Yaegi: %w", err)
-		}
+	err = s.yaegiCheck(manifest, gop, moduleName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run with Yaegi: %w", err)
 	}
 
-	snippets, err := createSnippets(repository, manifest.TestData)
+	snippets, err := createSnippets(repository, manifest)
 	if err != nil {
 		span.RecordError(ctx, err)
 		return nil, err
@@ -321,72 +321,6 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Stars:         repository.GetStargazersCount(),
 		Snippet:       snippets,
 	}, nil
-}
-
-func createSnippets(repository *github.Repository, testData map[string]interface{}) (map[string]interface{}, error) {
-	snip := map[string]interface{}{
-		"middlewares": map[string]interface{}{
-			"my-" + repository.GetName(): map[string]interface{}{
-				"plugin": map[string]interface{}{
-					repository.GetName(): testData,
-				},
-			},
-		},
-	}
-
-	yamlSnip, err := yaml.Marshal(snip)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
-	}
-
-	tomlSnip, err := toml.Marshal(snip)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
-	}
-
-	return map[string]interface{}{
-		"toml": string(tomlSnip),
-		"yaml": string(yamlSnip),
-	}, nil
-}
-
-func parseImageURL(repository *github.Repository, latestVersion string, imgPath string) string {
-	if imgPath == "" {
-		return ""
-	}
-
-	img, err := url.Parse(imgPath)
-	if err != nil {
-		return ""
-	}
-
-	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s", repository.GetOwner().GetLogin(), repository.GetName())
-	if strings.HasPrefix(imgPath, rawURL) {
-		return imgPath
-	}
-
-	rawURL = fmt.Sprintf("https://github.com/%s/%s/raw/", repository.GetOwner().GetLogin(), repository.GetName())
-	if strings.HasPrefix(imgPath, rawURL) {
-		return imgPath
-	}
-
-	if img.Host != "" {
-		return ""
-	}
-
-	baseURL, err := url.Parse(repository.GetHTMLURL())
-	if err != nil {
-		return ""
-	}
-
-	baseURL.Host = "raw.githubusercontent.com"
-
-	pictURL, err := baseURL.Parse(path.Join(baseURL.Path, latestVersion, path.Clean(img.Path)))
-	if err != nil {
-		return ""
-	}
-
-	return pictURL.String()
 }
 
 func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Repository, version string) (*modfile.File, error) {
@@ -454,8 +388,11 @@ func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 		return Manifest{}, fmt.Errorf("failed to read manifest content: %w", err)
 	}
 
-	if m.Type != "middleware" {
-		return Manifest{}, errors.New("unsupported type")
+	switch m.Type {
+	case typeMiddleware, typeProvider:
+		// noop
+	default:
+		return Manifest{}, fmt.Errorf("unsupported type: %s", m.Type)
 	}
 
 	if m.Import == "" {
@@ -610,7 +547,125 @@ func (s *Scrapper) store(ctx context.Context, data *plugin.Plugin) error {
 	return nil
 }
 
-func yaegiCheck(goPath string, manifest Manifest, skipNew bool) error {
+func createSnippets(repository *github.Repository, manifest Manifest) (map[string]interface{}, error) {
+	switch manifest.Type {
+	case typeMiddleware:
+		return createMiddlewareSnippets(repository, manifest.TestData)
+	case typeProvider:
+		return createProviderSnippets(repository, manifest.TestData)
+	default:
+		return nil, fmt.Errorf("unsupported type: %s", manifest.Type)
+	}
+}
+
+func createMiddlewareSnippets(repository *github.Repository, testData map[string]interface{}) (map[string]interface{}, error) {
+	snip := map[string]interface{}{
+		"middlewares": map[string]interface{}{
+			"my-" + repository.GetName(): map[string]interface{}{
+				"plugin": map[string]interface{}{
+					repository.GetName(): testData,
+				},
+			},
+		},
+	}
+
+	yamlSnip, err := yaml.Marshal(snip)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
+	}
+
+	tomlSnip, err := toml.Marshal(snip)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
+	}
+
+	return map[string]interface{}{
+		"toml": string(tomlSnip),
+		"yaml": string(yamlSnip),
+	}, nil
+}
+
+func createProviderSnippets(repository *github.Repository, testData map[string]interface{}) (map[string]interface{}, error) {
+	snip := map[string]interface{}{
+		"providers": map[string]interface{}{
+			"plugin": map[string]interface{}{
+				repository.GetName(): testData,
+			},
+		},
+	}
+
+	yamlSnip, err := yaml.Marshal(snip)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
+	}
+
+	tomlSnip, err := toml.Marshal(snip)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
+	}
+
+	return map[string]interface{}{
+		"toml": string(tomlSnip),
+		"yaml": string(yamlSnip),
+	}, nil
+}
+
+func parseImageURL(repository *github.Repository, latestVersion string, imgPath string) string {
+	if imgPath == "" {
+		return ""
+	}
+
+	img, err := url.Parse(imgPath)
+	if err != nil {
+		return ""
+	}
+
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s", repository.GetOwner().GetLogin(), repository.GetName())
+	if strings.HasPrefix(imgPath, rawURL) {
+		return imgPath
+	}
+
+	rawURL = fmt.Sprintf("https://github.com/%s/%s/raw/", repository.GetOwner().GetLogin(), repository.GetName())
+	if strings.HasPrefix(imgPath, rawURL) {
+		return imgPath
+	}
+
+	if img.Host != "" {
+		return ""
+	}
+
+	baseURL, err := url.Parse(repository.GetHTMLURL())
+	if err != nil {
+		return ""
+	}
+
+	baseURL.Host = "raw.githubusercontent.com"
+
+	pictURL, err := baseURL.Parse(path.Join(baseURL.Path, latestVersion, path.Clean(img.Path)))
+	if err != nil {
+		return ""
+	}
+
+	return pictURL.String()
+}
+
+func (s *Scrapper) yaegiCheck(manifest Manifest, goPath string, moduleName string) error {
+	switch manifest.Type {
+	case typeMiddleware:
+		_, skip := s.skipNewCall[moduleName]
+
+		return yaegiMiddlewareCheck(goPath, manifest, skip)
+
+	case typeProvider:
+		// TODO yaegi check for provider
+		return nil
+
+	default:
+		return fmt.Errorf("unsupported type: %s", manifest.Type)
+	}
+}
+
+func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error {
 	middlewareName := "test"
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})

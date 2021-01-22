@@ -1,0 +1,15 @@
+displayName: Plugin Example
+type: provider
+
+import: github.com/containous/plugintest/example
+basePkg: example
+
+compatibility: TODO
+
+summary: Simple example plugin.
+
+iconPath: icon.png
+bannerPath: http://example.org/a/banner.png
+
+testData:
+  Foo: Bar
