@@ -46,35 +46,69 @@ func (f *mockPluginClient) GetByName(ctx context.Context, name string) (*plugin.
 }
 
 func Test_loadManifestContent(t *testing.T) {
-	file, err := os.Open("./fixtures/" + manifestFile)
-	require.NoError(t, err)
-
-	defer func() { _ = file.Close() }()
-
-	b, err := ioutil.ReadAll(file)
-	require.NoError(t, err)
-
-	s := Scrapper{}
-	m, err := s.loadManifestContent(string(b))
-	require.NoError(t, err)
-
-	expected := Manifest{
-		DisplayName:   "Plugin Example",
-		Type:          "middleware",
-		Import:        "github.com/containous/plugintest/example",
-		BasePkg:       "example",
-		Compatibility: "TODO",
-		Summary:       "Simple example plugin.",
-		IconPath:      "icon.png",
-		BannerPath:    "http://example.org/a/banner.png",
-		TestData: map[string]interface{}{
-			"Headers": map[string]interface{}{
-				"Foo": "Bar",
+	testCases := []struct {
+		desc     string
+		filename string
+		expected Manifest
+	}{
+		{
+			desc:     "Middleware",
+			filename: ".traefik-middleware.yml",
+			expected: Manifest{
+				DisplayName:   "Plugin Example",
+				Type:          "middleware",
+				Import:        "github.com/traefik/plugintest/example",
+				BasePkg:       "example",
+				Compatibility: "TODO",
+				Summary:       "Simple example plugin.",
+				IconPath:      "icon.png",
+				BannerPath:    "http://example.org/a/banner.png",
+				TestData: map[string]interface{}{
+					"Headers": map[string]interface{}{
+						"Foo": "Bar",
+					},
+				},
+			},
+		},
+		{
+			desc:     "Provider",
+			filename: ".traefik-provider.yml",
+			expected: Manifest{
+				DisplayName:   "Plugin Example",
+				Type:          "provider",
+				Import:        "github.com/traefik/plugintest/example",
+				BasePkg:       "example",
+				Compatibility: "TODO",
+				Summary:       "Simple example plugin.",
+				IconPath:      "icon.png",
+				BannerPath:    "http://example.org/a/banner.png",
+				TestData: map[string]interface{}{
+					"Foo": "Bar",
+				},
 			},
 		},
 	}
 
-	assert.Equal(t, expected, m)
+	for _, test := range testCases {
+		test := test
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
+
+			file, err := os.Open("./fixtures/" + test.filename)
+			require.NoError(t, err)
+
+			t.Cleanup(func() { _ = file.Close() })
+
+			b, err := ioutil.ReadAll(file)
+			require.NoError(t, err)
+
+			s := Scrapper{}
+			m, err := s.loadManifestContent(string(b))
+			require.NoError(t, err)
+
+			assert.Equal(t, test.expected, m)
+		})
+	}
 }
 
 func TestScrapper_store(t *testing.T) {
@@ -115,7 +149,7 @@ func TestScrapper_store(t *testing.T) {
 	}
 }
 
-func Test_createSnippets(t *testing.T) {
+func Test_createMiddlewareSnippets(t *testing.T) {
 	repository := &github.Repository{
 		Name: github.String("plugintest"),
 	}
@@ -126,7 +160,7 @@ func Test_createSnippets(t *testing.T) {
 		},
 	}
 
-	snippets, err := createSnippets(repository, testData)
+	snippets, err := createMiddlewareSnippets(repository, testData)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,6 +184,39 @@ func Test_createSnippets(t *testing.T) {
             plugintest:
                 Headers:
                     Foo: Bar
+`,
+	}
+
+	assert.Equal(t, expected, snippets)
+}
+
+func Test_createProviderSnippets(t *testing.T) {
+	repository := &github.Repository{
+		Name: github.String("plugintest"),
+	}
+
+	testData := map[string]interface{}{
+		"foo": "Bar",
+	}
+
+	snippets, err := createProviderSnippets(repository, testData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := map[string]interface{}{
+		"toml": `
+[providers]
+
+  [providers.plugin]
+
+    [providers.plugin.plugintest]
+      foo = "Bar"
+`,
+		"yaml": `providers:
+    plugin:
+        plugintest:
+            foo: Bar
 `,
 	}
 
