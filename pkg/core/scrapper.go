@@ -560,10 +560,12 @@ func createSnippets(repository *github.Repository, manifest Manifest) (map[strin
 
 func createMiddlewareSnippets(repository *github.Repository, testData map[string]interface{}) (map[string]interface{}, error) {
 	snip := map[string]interface{}{
-		"middlewares": map[string]interface{}{
-			"my-" + repository.GetName(): map[string]interface{}{
-				"plugin": map[string]interface{}{
-					repository.GetName(): testData,
+		"http": map[string]interface{}{
+			"middlewares": map[string]interface{}{
+				"my-" + repository.GetName(): map[string]interface{}{
+					"plugin": map[string]interface{}{
+						repository.GetName(): testData,
+					},
 				},
 			},
 		},
