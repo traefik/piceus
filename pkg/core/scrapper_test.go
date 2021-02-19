@@ -167,23 +167,26 @@ func Test_createMiddlewareSnippets(t *testing.T) {
 
 	expected := map[string]interface{}{
 		"toml": `
-[middlewares]
+[http]
 
-  [middlewares.my-plugintest]
+  [http.middlewares]
 
-    [middlewares.my-plugintest.plugin]
+    [http.middlewares.my-plugintest]
 
-      [middlewares.my-plugintest.plugin.plugintest]
+      [http.middlewares.my-plugintest.plugin]
 
-        [middlewares.my-plugintest.plugin.plugintest.Headers]
-          Foo = "Bar"
+        [http.middlewares.my-plugintest.plugin.plugintest]
+
+          [http.middlewares.my-plugintest.plugin.plugintest.Headers]
+            Foo = "Bar"
 `,
-		"yaml": `middlewares:
-    my-plugintest:
-        plugin:
-            plugintest:
-                Headers:
-                    Foo: Bar
+		"yaml": `http:
+    middlewares:
+        my-plugintest:
+            plugin:
+                plugintest:
+                    Headers:
+                        Foo: Bar
 `,
 	}
 
