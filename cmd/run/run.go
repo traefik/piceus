@@ -11,29 +11,25 @@ import (
 	"github.com/traefik/piceus/pkg/core"
 	"github.com/traefik/piceus/pkg/sources"
 	"github.com/traefik/piceus/pkg/tracer"
-	"github.com/urfave/cli/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/oauth2"
 )
 
-// Run executes Piceus scrapper.
-func Run(c *cli.Context) error {
-	ctx := context.Background()
-
-	exporter, err := tracer.NewJaegerExporter(c.String("tracing-endpoint"), c.String("tracing-username"), c.String("tracing-password"))
+func run(ctx context.Context, cfg Config) error {
+	exporter, err := tracer.NewJaegerExporter(cfg.Tracing.Endpoint, cfg.Tracing.Username, cfg.Tracing.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to configure new exporter.")
 		return err
 	}
 	defer exporter.Flush()
 
-	bsp := tracer.Setup(exporter, c.Float64("tracing-probability"))
-	defer bsp.Shutdown()
+	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
+	defer func() { _ = bsp.Shutdown(ctx) }()
 
-	ghClient := newGitHubClient(ctx, c.String("github-token"))
+	ghClient := newGitHubClient(ctx, cfg.Pilot.GithubToken)
 	gpClient := goproxy.NewClient("")
 
-	pgClient := plugin.New(c.String("plugin-url"), c.String("services-access-token"))
+	pgClient := plugin.New(cfg.Pilot.PluginURL, cfg.Pilot.ServicesAccessToken)
 
 	var srcs core.Sources
 	if _, ok := os.LookupEnv(core.PrivateModeEnv); ok {

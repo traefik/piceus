@@ -20,7 +20,7 @@ type mockPluginClient struct {
 	getByName func(string) (*plugin.Plugin, error)
 }
 
-func (f *mockPluginClient) Create(ctx context.Context, p plugin.Plugin) error {
+func (f *mockPluginClient) Create(_ context.Context, p plugin.Plugin) error {
 	log.Info().Str("moduleName", p.Name).Msgf("Create: %+v", p)
 
 	if f.create != nil {
@@ -29,7 +29,7 @@ func (f *mockPluginClient) Create(ctx context.Context, p plugin.Plugin) error {
 	return nil
 }
 
-func (f *mockPluginClient) Update(ctx context.Context, p plugin.Plugin) error {
+func (f *mockPluginClient) Update(_ context.Context, p plugin.Plugin) error {
 	log.Info().Str("moduleName", p.Name).Msgf("Update: %+v", p)
 
 	if f.update != nil {
@@ -38,7 +38,7 @@ func (f *mockPluginClient) Update(ctx context.Context, p plugin.Plugin) error {
 	return nil
 }
 
-func (f *mockPluginClient) GetByName(ctx context.Context, name string) (*plugin.Plugin, error) {
+func (f *mockPluginClient) GetByName(_ context.Context, name string) (*plugin.Plugin, error) {
 	if f.getByName != nil {
 		return f.getByName(name)
 	}
