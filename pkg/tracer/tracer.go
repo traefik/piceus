@@ -2,8 +2,8 @@ package tracer
 
 import (
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/trace/jaeger"
-	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/propagation"
 	export "go.opentelemetry.io/otel/sdk/export/trace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -37,8 +37,8 @@ func NewJaegerExporter(endpoint, username, password string) (*jaeger.Exporter, e
 		),
 		jaeger.WithProcess(jaeger.Process{
 			ServiceName: serviceName,
-			Tags: []label.KeyValue{
-				label.String("exporter", "jaeger"),
+			Tags: []attribute.KeyValue{
+				attribute.String("exporter", "jaeger"),
 			},
 		}))
 }
