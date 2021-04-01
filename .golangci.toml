@@ -26,21 +26,27 @@
 [linters]
   enable-all = true
   disable = [
-    "maligned",
+    "interfacer", # deprecated
+    "maligned", # deprecated
+    "scopelint", # deprecated
+    "sqlclosecheck", # Not relevant (SQL)
+    "rowserrcheck", # Not relevant (SQL)
+    "cyclop", # Duplicate of gocyclo
     "lll",
-    "dupl",
     "gosec",
-    "wsl",
-    "nlreturn",
+    "dupl",
     "gomnd",
-    "testpackage",
-    "paralleltest",
     "tparallel",
+    "paralleltest",
+    "testpackage",
     "goerr113",
     "wrapcheck",
-    "noctx",
+    "nlreturn",
+    "wsl",
+    "exhaustive",
     "exhaustivestruct",
-    "cyclop",
+    "ifshort",
+    "noctx",
   ]
 
 [issues]
