@@ -119,6 +119,11 @@ func (s *Scrapper) Run(ctx context.Context) error {
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to import repository")
 
+			errResp := &github.ErrorResponse{}
+			if errors.As(err, &errResp) && errResp.Response.StatusCode >= http.StatusInternalServerError {
+				continue
+			}
+
 			issue := &github.IssueRequest{
 				Title: github.String(issueTitle),
 				Body:  github.String(fmt.Sprintf(issueContent, err)),
