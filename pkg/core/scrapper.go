@@ -107,16 +107,17 @@ func (s *Scrapper) Run(ctx context.Context) error {
 	}
 
 	for _, repository := range repositories {
-		if s.isSkipped(ctx, repository) {
+		logger := log.With().Str("repo", repository.GetFullName()).Logger()
+
+		if s.isSkipped(logger.WithContext(ctx), repository) {
 			continue
 		}
 
-		log.Debug().Msg(repository.GetHTMLURL())
+		logger.Debug().Msg(repository.GetHTMLURL())
 
 		data, err := s.process(ctx, repository)
 		if err != nil {
-			log.Error().Err(err).Str("repo", repository.GetFullName()).
-				Msg("Failed to import repository")
+			logger.Error().Err(err).Msg("Failed to import repository")
 
 			issue := &github.IssueRequest{
 				Title: github.String(issueTitle),
@@ -125,16 +126,16 @@ func (s *Scrapper) Run(ctx context.Context) error {
 			_, _, err = s.gh.Issues.Create(ctx, repository.GetOwner().GetLogin(), repository.GetName(), issue)
 			if err != nil {
 				span.RecordError(err)
-				log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to create issue")
+				logger.Error().Err(err).Msg("Failed to create issue")
 			}
 
 			continue
 		}
 
-		err = s.store(ctx, data)
+		err = s.store(logger.WithContext(ctx), data)
 		if err != nil {
 			span.RecordError(err)
-			log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to store plugin")
+			logger.Error().Err(err).Msg("Failed to store plugin")
 		}
 	}
 
@@ -147,7 +148,7 @@ func (s *Scrapper) isSkipped(ctx context.Context, repository *github.Repository)
 	}
 
 	if s.hasIssue(ctx, repository) {
-		log.Info().Str("repo", repository.GetFullName()).Msg("The issue is still opened.")
+		log.Ctx(ctx).Info().Msg("The issue is still opened.")
 		return true
 	}
 
@@ -161,7 +162,7 @@ func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) 
 	user, _, err := s.gh.Users.Get(ctx, "")
 	if err != nil {
 		span.RecordError(err)
-		log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to get current GitHub user")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to get current GitHub user")
 		return false
 	}
 
@@ -173,7 +174,7 @@ func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) 
 	issues, _, err := s.gh.Issues.ListByRepo(ctx, repository.GetOwner().GetLogin(), repository.GetName(), opts)
 	if err != nil {
 		span.RecordError(err)
-		log.Error().Err(err).Str("repo", repository.GetFullName()).Msg("Failed to list issues on repo")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to list issues on repo")
 		return false
 	}
 
@@ -504,6 +505,8 @@ func (s *Scrapper) store(ctx context.Context, data *plugin.Plugin) error {
 		return nil
 	}
 
+	logger := log.Ctx(ctx).With().Str("moduleName", data.Name).Logger()
+
 	ctx, span := s.tracer.Start(ctx, "scrapper_store_"+data.Name)
 	defer span.End()
 
@@ -513,14 +516,14 @@ func (s *Scrapper) store(ctx context.Context, data *plugin.Plugin) error {
 
 		var notFoundError *plugin.APIError
 		if errors.As(err, &notFoundError) && notFoundError.StatusCode == http.StatusNotFound {
-			log.Debug().Err(err).Str("moduleName", data.Name).Msg("fallback")
+			logger.Debug().Err(err).Msg("fallback")
 
 			err = s.pg.Create(ctx, *data)
 			if err != nil {
 				return err
 			}
 
-			log.Info().Str("moduleName", data.Name).Msg("Stored")
+			logger.Info().Msg("Stored")
 			return nil
 		}
 
@@ -541,7 +544,7 @@ func (s *Scrapper) store(ctx context.Context, data *plugin.Plugin) error {
 	}
 
 	if prev.LatestVersion != data.LatestVersion {
-		log.Info().Str("moduleName", data.Name).Str("latestVersion", data.LatestVersion).Msg("Updated")
+		logger.Info().Str("latestVersion", data.LatestVersion).Msg("Updated")
 	}
 
 	return nil
