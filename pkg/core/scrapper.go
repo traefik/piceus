@@ -620,7 +620,7 @@ func createProviderSnippets(repository *github.Repository, testData map[string]i
 	}, nil
 }
 
-func parseImageURL(repository *github.Repository, latestVersion string, imgPath string) string {
+func parseImageURL(repository *github.Repository, latestVersion, imgPath string) string {
 	if imgPath == "" {
 		return ""
 	}
@@ -659,7 +659,7 @@ func parseImageURL(repository *github.Repository, latestVersion string, imgPath 
 	return pictURL.String()
 }
 
-func (s *Scrapper) yaegiCheck(manifest Manifest, goPath string, moduleName string) error {
+func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) error {
 	switch manifest.Type {
 	case typeMiddleware:
 		_, skip := s.skipNewCall[moduleName]

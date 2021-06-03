@@ -44,7 +44,7 @@ func run(ctx context.Context, cfg Config) error {
 }
 
 func newGitHubClient(ctx context.Context, token string) *github.Client {
-	if len(token) == 0 {
+	if token == "" {
 		return github.NewClient(nil)
 	}
 

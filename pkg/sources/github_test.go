@@ -33,7 +33,7 @@ func TestGHSources_Get(t *testing.T) {
 }
 
 func newGitHubClient(ctx context.Context, token string) *github.Client {
-	if len(token) == 0 {
+	if token == "" {
 		return github.NewClient(nil)
 	}
 
