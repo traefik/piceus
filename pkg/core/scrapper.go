@@ -107,7 +107,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 	}
 
 	for _, repository := range repositories {
-		logger := log.With().Str("repo", repository.GetFullName()).Logger()
+		logger := log.With().Str("repo_name", repository.GetFullName()).Logger()
 
 		if s.isSkipped(logger.WithContext(ctx), repository) {
 			continue
@@ -115,7 +115,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 
 		logger.Debug().Msg(repository.GetHTMLURL())
 
-		data, err := s.process(ctx, repository)
+		data, err := s.process(logger.WithContext(ctx), repository)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to import repository")
 
@@ -236,7 +236,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	readme, err := s.loadReadme(ctx, repository, latestVersion)
 	if err != nil {
 		span.RecordError(err)
-		return nil, fmt.Errorf("failed to get readme: %w", err)
+		return nil, fmt.Errorf("failed to load readme: %w", err)
 	}
 
 	// Gets manifestFile
@@ -429,7 +429,7 @@ func (s *Scrapper) loadReadme(ctx context.Context, repository *github.Repository
 	readme, _, err := s.gh.Repositories.GetReadme(ctx, repository.GetOwner().GetLogin(), repository.GetName(), opts)
 	if err != nil {
 		span.RecordError(err)
-		return "", fmt.Errorf("failed to get readme: %w", err)
+		return "", fmt.Errorf("failed to get the readme file: %w", err)
 	}
 
 	content, err := readme.GetContent()
@@ -510,7 +510,7 @@ func (s *Scrapper) store(ctx context.Context, data *plugin.Plugin) error {
 		return nil
 	}
 
-	logger := log.Ctx(ctx).With().Str("moduleName", data.Name).Logger()
+	logger := log.Ctx(ctx).With().Str("module_name", data.Name).Logger()
 
 	ctx, span := s.tracer.Start(ctx, "scrapper_store_"+data.Name)
 	defer span.End()
@@ -549,7 +549,7 @@ func (s *Scrapper) store(ctx context.Context, data *plugin.Plugin) error {
 	}
 
 	if prev.LatestVersion != data.LatestVersion {
-		logger.Info().Str("latestVersion", data.LatestVersion).Msg("Updated")
+		logger.Info().Str("latest_version", data.LatestVersion).Msg("Updated")
 	}
 
 	return nil

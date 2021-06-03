@@ -21,7 +21,7 @@ type mockPluginClient struct {
 }
 
 func (f *mockPluginClient) Create(_ context.Context, p plugin.Plugin) error {
-	log.Info().Str("moduleName", p.Name).Msgf("Create: %+v", p)
+	log.Info().Str("module_name", p.Name).Interface("plugin", p).Msg("Create plugin")
 
 	if f.create != nil {
 		return f.create(p)
@@ -30,7 +30,7 @@ func (f *mockPluginClient) Create(_ context.Context, p plugin.Plugin) error {
 }
 
 func (f *mockPluginClient) Update(_ context.Context, p plugin.Plugin) error {
-	log.Info().Str("moduleName", p.Name).Msgf("Update: %+v", p)
+	log.Info().Str("module_name", p.Name).Interface("plugin", p).Msg("Update plugin")
 
 	if f.update != nil {
 		return f.update(p)
