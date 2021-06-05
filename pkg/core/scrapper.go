@@ -113,8 +113,6 @@ func (s *Scrapper) Run(ctx context.Context) error {
 			continue
 		}
 
-		logger.Debug().Msg(repository.GetHTMLURL())
-
 		data, err := s.process(logger.WithContext(ctx), repository)
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to import repository")
