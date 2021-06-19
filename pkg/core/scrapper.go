@@ -299,7 +299,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	// Check Yaegi interface
 	err = s.yaegiCheck(manifest, gop, moduleName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to run with Yaegi: %w", err)
+		return nil, fmt.Errorf("failed to run the plugin with Yaegi: %w", err)
 	}
 
 	snippets, err := createSnippets(repository, manifest)
@@ -686,7 +686,7 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 
 	_, err := i.EvalWithContext(ctx, fmt.Sprintf(`import "%s"`, manifest.Import))
 	if err != nil {
-		return fmt.Errorf("plugin: failed to import plugin code: %w", err)
+		return fmt.Errorf("the load of the plugin takes too much time, or an error, inside the plugin, occurs during the load: %w", err)
 	}
 
 	basePkg := manifest.BasePkg
@@ -697,7 +697,7 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 
 	vConfig, err := i.EvalWithContext(ctx, basePkg+`.CreateConfig()`)
 	if err != nil {
-		return fmt.Errorf("plugin: failed to eval CreateConfig: %w", err)
+		return fmt.Errorf("failed to eval `CreateConfig` function: %w", err)
 	}
 
 	err = decodeConfig(vConfig, manifest.TestData)
@@ -707,7 +707,7 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 
 	fnNew, err := i.EvalWithContext(ctx, basePkg+`.New`)
 	if err != nil {
-		return fmt.Errorf("plugin: failed to eval New: %w", err)
+		return fmt.Errorf("failed to eval `New` function: %w", err)
 	}
 
 	err = checkFunctionNewSignature(fnNew, vConfig)
@@ -723,12 +723,12 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 		}
 
 		if len(results) > 1 && results[1].Interface() != nil {
-			return fmt.Errorf("plugin: failed to create a new plugin instance: %w", results[1].Interface().(error))
+			return fmt.Errorf("failed to create a new plugin instance: %w", results[1].Interface().(error))
 		}
 
 		_, ok := results[0].Interface().(http.Handler)
 		if !ok {
-			return fmt.Errorf("plugin: invalid handler type: %T", results[0].Interface())
+			return fmt.Errorf("invalid handler type: %T", results[0].Interface())
 		}
 	}
 
