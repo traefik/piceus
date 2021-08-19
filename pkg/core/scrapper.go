@@ -682,7 +682,9 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 	defer cancel()
 
 	i := interp.New(interp.Options{GoPath: goPath})
-	i.Use(stdlib.Symbols)
+	if err := i.Use(stdlib.Symbols); err != nil {
+		return fmt.Errorf("load of stdlib symbols: %w", err)
+	}
 
 	_, err := i.EvalWithContext(ctx, fmt.Sprintf(`import "%s"`, manifest.Import))
 	if err != nil {

@@ -9,7 +9,7 @@ linters-settings:
     disable:
       - fieldalignment
   gocyclo:
-    min-complexity: 12
+    min-complexity: 13
   maligned:
     suggest-new: true
   goconst:
