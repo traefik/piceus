@@ -678,7 +678,7 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	i := interp.New(interp.Options{GoPath: goPath})
