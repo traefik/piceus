@@ -85,6 +85,6 @@ issues:
     - path: pkg/core/scrapper.go
       text: Function 'process' has too many statements
     - path: pkg/core/scrapper.go
-      text: 'cyclomatic complexity 15 of func `\(\*Scrapper\).process` is high'
+      text: 'cyclomatic complexity \d+ of func `\(\*Scrapper\).process` is high'
     - path: pkg/sources/github.go
       text: 'G110: Potential DoS vulnerability via decompression bomb'
