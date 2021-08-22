@@ -26,15 +26,15 @@ type Config struct {
 func buildConfig(cliCtx *cli.Context) Config {
 	return Config{
 		Pilot: Pilot{
-			GithubToken:         cliCtx.String("github-token"),
-			ServicesAccessToken: cliCtx.String("services-access-token"),
-			PluginURL:           cliCtx.String("plugin-url"),
+			GithubToken:         cliCtx.String(flagGitHubToken),
+			ServicesAccessToken: cliCtx.String(flagServicesAccessToken),
+			PluginURL:           cliCtx.String(flagPluginURL),
 		},
 		Tracing: Tracing{
-			Endpoint:    cliCtx.String("tracing-endpoint"),
-			Username:    cliCtx.String("tracing-username"),
-			Password:    cliCtx.String("tracing-password"),
-			Probability: cliCtx.Float64("tracing-probability"),
+			Endpoint:    cliCtx.String(flagTracingEndpoint),
+			Username:    cliCtx.String(flagTracingUsername),
+			Password:    cliCtx.String(flagTracingPassword),
+			Probability: cliCtx.Float64(flagTracingProbability),
 		},
 	}
 }

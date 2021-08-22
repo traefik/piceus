@@ -3,6 +3,7 @@ module github.com/traefik/piceus
 go 1.16
 
 require (
+	github.com/ettle/strcase v0.1.1
 	github.com/google/go-cmp v0.5.6
 	github.com/google/go-github/v35 v35.3.0
 	github.com/ldez/grignotin v0.4.1

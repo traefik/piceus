@@ -1,6 +1,22 @@
 package run
 
-import "github.com/urfave/cli/v2"
+import (
+	"github.com/ettle/strcase"
+	"github.com/urfave/cli/v2"
+)
+
+const (
+	flagGitHubToken         = "github-token"
+	flagServicesAccessToken = "services-access-token"
+	flagPluginURL           = "plugin-url"
+)
+
+const (
+	flagTracingEndpoint    = "tracing-endpoint"
+	flagTracingUsername    = "tracing-username"
+	flagTracingPassword    = "tracing-password"
+	flagTracingProbability = "tracing-probability"
+)
 
 // Command creates the run command.
 func Command() *cli.Command {
@@ -10,21 +26,21 @@ func Command() *cli.Command {
 		Description: "Launch application piceus",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "github-token",
+				Name:     flagGitHubToken,
 				Usage:    "GitHub Token.",
-				EnvVars:  []string{"GITHUB_TOKEN"},
+				EnvVars:  []string{strcase.ToSNAKE(flagGitHubToken)},
 				Required: true,
 			},
 			&cli.StringFlag{
-				Name:     "services-access-token",
+				Name:     flagServicesAccessToken,
 				Usage:    "Pilot Services Access Token",
-				EnvVars:  []string{"PILOT_SERVICES_ACCESS_TOKEN"},
+				EnvVars:  []string{"PILOT_" + strcase.ToSNAKE(flagServicesAccessToken)},
 				Required: true,
 			},
 			&cli.StringFlag{
-				Name:     "plugin-url",
+				Name:     flagPluginURL,
 				Usage:    "Plugin Service URL",
-				EnvVars:  []string{"PILOT_PLUGIN_URL"},
+				EnvVars:  []string{"PILOT_" + strcase.ToSNAKE(flagPluginURL)},
 				Required: true,
 			},
 		},
@@ -43,30 +59,30 @@ func Command() *cli.Command {
 func tracingFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
-			Name:     "tracing-endpoint",
+			Name:     flagTracingEndpoint,
 			Usage:    "Endpoint to send traces",
-			EnvVars:  []string{"TRACING_ENDPOINT"},
+			EnvVars:  []string{strcase.ToSNAKE(flagTracingEndpoint)},
 			Value:    "https://collector.infra.traefiklabs.tech",
 			Required: false,
 		},
 		&cli.StringFlag{
-			Name:     "tracing-username",
+			Name:     flagTracingUsername,
 			Usage:    "Username to connect to Jaeger",
-			EnvVars:  []string{"TRACING_USERNAME"},
+			EnvVars:  []string{strcase.ToSNAKE(flagTracingUsername)},
 			Value:    "jaeger",
 			Required: false,
 		},
 		&cli.StringFlag{
-			Name:     "tracing-password",
+			Name:     flagTracingPassword,
 			Usage:    "Password to connect to Jaeger",
-			EnvVars:  []string{"TRACING_PASSWORD"},
+			EnvVars:  []string{strcase.ToSNAKE(flagTracingPassword)},
 			Value:    "jaeger",
 			Required: false,
 		},
 		&cli.Float64Flag{
-			Name:     "tracing-probability",
+			Name:     flagTracingProbability,
 			Usage:    "Probability to send traces.",
-			EnvVars:  []string{"TRACING_PROBABILITY"},
+			EnvVars:  []string{strcase.ToSNAKE(flagTracingProbability)},
 			Value:    0,
 			Required: false,
 		},
