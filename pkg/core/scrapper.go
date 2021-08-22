@@ -20,6 +20,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pelletier/go-toml"
 	"github.com/rs/zerolog/log"
+	pfile "github.com/traefik/paerser/file"
 	"github.com/traefik/piceus/internal/plugin"
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
@@ -387,7 +388,7 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 
 func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 	m := Manifest{}
-	err := yaml.Unmarshal([]byte(content), &m)
+	err := pfile.DecodeContent(content, ".yaml", &m)
 	if err != nil {
 		return Manifest{}, fmt.Errorf("failed to read manifest content: %w", err)
 	}
