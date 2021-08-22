@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/google/go-github/v35/github"
+	"github.com/google/go-github/v38/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/piceus/internal/plugin"

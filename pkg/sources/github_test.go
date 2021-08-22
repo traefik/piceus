@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/google/go-github/v35/github"
+	"github.com/google/go-github/v38/github"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/mod/module"
 	"golang.org/x/oauth2"
