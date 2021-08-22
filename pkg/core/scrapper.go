@@ -271,7 +271,12 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		return nil, err
 	}
 
-	// Gets versions
+	err = checkRepoName(repository, moduleName, manifest)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get versions
 
 	versions, err := s.getVersions(ctx, repository, moduleName)
 	if err != nil {
@@ -289,7 +294,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	defer func() { _ = os.RemoveAll(gop) }()
 
-	// Gets sources
+	// Get sources
 
 	err = s.sources.Get(ctx, repository, gop, module.Version{Path: moduleName, Version: latestVersion})
 	if err != nil {
@@ -689,7 +694,8 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 
 	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	timeout := 10 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	i := interp.New(interp.Options{GoPath: goPath})
@@ -699,7 +705,7 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 
 	_, err := i.EvalWithContext(ctx, fmt.Sprintf(`import "%s"`, manifest.Import))
 	if err != nil {
-		return fmt.Errorf("the load of the plugin takes too much time, or an error, inside the plugin, occurs during the load: %w", err)
+		return fmt.Errorf("the load of the plugin takes too much time(%s), or an error, inside the plugin, occurs during the load: %w", timeout, err)
 	}
 
 	basePkg := manifest.BasePkg
@@ -828,12 +834,26 @@ func checkModuleFile(mod *modfile.File, manifest Manifest) error {
 			strings.Contains(require.Mod.Path, "github.com/traefik/yaegi") ||
 			strings.Contains(require.Mod.Path, "github.com/traefik/traefik") ||
 			strings.Contains(require.Mod.Path, "github.com/traefik/mesh") {
-			return fmt.Errorf("a plugin cannot have a dependence to: %v", require.Mod.Path)
+			return fmt.Errorf("a plugin cannot have a dependence to: %s", require.Mod.Path)
 		}
 	}
 
 	if !strings.HasPrefix(strings.ReplaceAll(manifest.Import, "-", "_"), strings.ReplaceAll(mod.Module.Mod.Path, "-", "_")) {
 		return fmt.Errorf("the import %q must be related to the module name %q", manifest.Import, mod.Module.Mod.Path)
+	}
+
+	return nil
+}
+
+func checkRepoName(repository *github.Repository, moduleName string, manifest Manifest) error {
+	repoName := path.Join("github.com", repository.GetFullName())
+
+	if !strings.HasPrefix(moduleName, repoName) {
+		return fmt.Errorf("unsupported plugin: the module name (%s) doesn't contain the GitHub repository name (%s)", moduleName, repoName)
+	}
+
+	if !strings.HasPrefix(manifest.Import, repoName) {
+		return fmt.Errorf("unsupported plugin: the import name (%s) doesn't contain the GitHub repository name (%s)", manifest.Import, repoName)
 	}
 
 	return nil
