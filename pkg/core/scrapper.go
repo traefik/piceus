@@ -387,10 +387,20 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 }
 
 func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
-	m := Manifest{}
-	err := pfile.DecodeContent(content, ".yaml", &m)
+	var m Manifest
+	err := yaml.Unmarshal([]byte(content), &m)
 	if err != nil {
 		return Manifest{}, fmt.Errorf("failed to read manifest content: %w", err)
+	}
+
+	if len(m.TestData) > 0 {
+		var mp Manifest
+		err = pfile.DecodeContent(content, ".yaml", &mp)
+		if err != nil {
+			return Manifest{}, fmt.Errorf("failed to read testdata from manifest: %w", err)
+		}
+
+		m.TestData = mp.TestData
 	}
 
 	switch m.Type {
