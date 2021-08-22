@@ -27,7 +27,7 @@ global_job_config:
       # so it's not possible to use sem-version.
       # - sem-version go 1.14
       - curl -sSfL https://raw.githubusercontent.com/ldez/semgo/master/godownloader.sh | sudo sh -s -- -b "/usr/local/bin"
-      - sudo semgo go1.16
+      - sudo semgo go1.17
       - export "GOPATH=$(go env GOPATH)"
       - export "SEMAPHORE_GIT_DIR=${GOPATH}/src/github.com/traefik/${SEMAPHORE_PROJECT_NAME}"
       - export "PATH=${GOPATH}/bin:${PATH}"
@@ -49,7 +49,6 @@ blocks:
             - go mod tidy
             - git diff --exit-code go.mod
             - git diff --exit-code go.sum
-            - go mod download
             - cache store "mod-${SEMAPHORE_PROJECT_NAME}-${SEMAPHORE_GIT_BRANCH}-$(checksum go.mod)" "${GOPATH}/pkg/mod"
             - cache store "mod-${SEMAPHORE_PROJECT_NAME}-$(checksum go.mod)" "${GOPATH}/pkg/mod"
             - cache store "mod-${SEMAPHORE_PROJECT_NAME}" "${GOPATH}/pkg/mod"

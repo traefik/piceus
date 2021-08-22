@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -70,7 +70,7 @@ func (c *Client) Create(ctx context.Context, p Plugin) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode/100 != 2 {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 
 		return &APIError{
 			Message:    string(body),
@@ -119,7 +119,7 @@ func (c *Client) Update(ctx context.Context, p Plugin) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode/100 != 2 {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return &APIError{
 			Message:    string(body),
 			StatusCode: resp.StatusCode,
@@ -156,7 +156,7 @@ func (c *Client) GetByName(ctx context.Context, name string) (*Plugin, error) {
 
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}

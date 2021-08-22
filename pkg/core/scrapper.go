@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -286,7 +285,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	// Creates temp GOPATH
 
-	gop, err := ioutil.TempDir("", "pilot-gop")
+	gop, err := os.MkdirTemp("", "pilot-gop")
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to create temp GOPATH: %w", err)

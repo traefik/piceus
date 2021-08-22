@@ -2,7 +2,7 @@ package core
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -99,7 +99,7 @@ func Test_loadManifestContent(t *testing.T) {
 
 			t.Cleanup(func() { _ = file.Close() })
 
-			b, err := ioutil.ReadAll(file)
+			b, err := io.ReadAll(file)
 			require.NoError(t, err)
 
 			s := Scrapper{}
