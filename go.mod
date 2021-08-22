@@ -22,3 +22,5 @@ require (
 	golang.org/x/oauth2 v0.0.0-20210220000619-9bb904979d93
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
+
+retract v1.10.2 // error during tag creation
