@@ -8,10 +8,14 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v38/github"
+	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/traefik/piceus/internal/plugin"
+	"github.com/traefik/piceus/pkg/sources"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"golang.org/x/oauth2"
 )
 
 type mockPluginClient struct {
@@ -282,4 +286,32 @@ func Test_parseImageURL(t *testing.T) {
 			assert.Equal(t, test.expected, imgURL)
 		})
 	}
+}
+
+func TestScrapper_process(t *testing.T) {
+	t.Skip("for debug purpose only")
+
+	token := ""
+	owner := ""
+	repo := ""
+
+	ctx := context.Background()
+
+	client := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token}))
+	client.Transport = otelhttp.NewTransport(client.Transport)
+
+	ghClient := github.NewClient(client)
+	pgClient := plugin.New("", "") // ignored for this test
+	gpClient := goproxy.NewClient("")
+	srcs := &sources.GitHub{Client: ghClient}
+
+	scrapper := NewScrapper(ghClient, gpClient, pgClient, srcs)
+
+	repository, _, err := ghClient.Repositories.Get(ctx, owner, repo)
+	require.NoError(t, err)
+
+	p, err := scrapper.process(ctx, repository)
+	require.NoError(t, err)
+
+	assert.NotNil(t, p)
 }
