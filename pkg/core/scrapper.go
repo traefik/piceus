@@ -675,9 +675,10 @@ func parseImageURL(repository *github.Repository, latestVersion, imgPath string)
 func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) error {
 	switch manifest.Type {
 	case typeMiddleware:
-		_, skip := s.skipNewCall[moduleName]
-
-		return yaegiMiddlewareCheck(goPath, manifest, skip)
+		// skip due to a security issue
+		return nil
+		// _, skip := s.skipNewCall[moduleName]
+		// return yaegiMiddlewareCheck(goPath, manifest, skip)
 
 	case typeProvider:
 		// TODO yaegi check for provider
