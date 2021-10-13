@@ -677,8 +677,11 @@ func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) erro
 	case typeMiddleware:
 		// skip due to a security issue
 		return nil
-		// _, skip := s.skipNewCall[moduleName]
-		// return yaegiMiddlewareCheck(goPath, manifest, skip)
+
+		// skip due to a security issue
+	case "AA345342F2757289109C3394C6D7D7EBFC942C930731472F17CDBE53B52F6450":
+		_, skip := s.skipNewCall[moduleName]
+		return yaegiMiddlewareCheck(goPath, manifest, skip)
 
 	case typeProvider:
 		// TODO yaegi check for provider
