@@ -674,13 +674,8 @@ func parseImageURL(repository *github.Repository, latestVersion, imgPath string)
 }
 
 func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) error {
-	bckEnviron := dropSensitiveEnvVars()
-
-	defer func() {
-		for k, v := range bckEnviron {
-			_ = os.Setenv(k, v)
-		}
-	}()
+	tearDown := dropSensitiveEnvVars()
+	defer tearDown()
 
 	switch manifest.Type {
 	case typeMiddleware:
@@ -866,7 +861,7 @@ func checkRepoName(repository *github.Repository, moduleName string, manifest Ma
 	return nil
 }
 
-func dropSensitiveEnvVars() map[string]string {
+func dropSensitiveEnvVars() func() {
 	bckEnviron := make(map[string]string)
 
 	for _, ev := range os.Environ() {
@@ -884,7 +879,11 @@ func dropSensitiveEnvVars() map[string]string {
 		}
 	}
 
-	return bckEnviron
+	return func() {
+		for k, v := range bckEnviron {
+			_ = os.Setenv(k, v)
+		}
+	}
 }
 
 func safeIssueBody(err error) string {
