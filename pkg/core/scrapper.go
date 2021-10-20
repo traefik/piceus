@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -124,7 +125,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 
 			issue := &github.IssueRequest{
 				Title: github.String(issueTitle),
-				Body:  github.String(fmt.Sprintf(issueContent, err)),
+				Body:  github.String(safeIssueBody(err)),
 			}
 			_, _, err = s.gh.Issues.Create(ctx, repository.GetOwner().GetLogin(), repository.GetName(), issue)
 			if err != nil {
@@ -673,13 +674,16 @@ func parseImageURL(repository *github.Repository, latestVersion, imgPath string)
 }
 
 func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) error {
+	bckEnviron := dropSensitiveEnvVars()
+
+	defer func() {
+		for k, v := range bckEnviron {
+			_ = os.Setenv(k, v)
+		}
+	}()
+
 	switch manifest.Type {
 	case typeMiddleware:
-		// skip due to a security issue
-		return nil
-
-	// skip due to a security issue
-	case "AA345342F2757289109C3394C6D7D7EBFC942C930731472F17CDBE53B52F6450":
 		_, skip := s.skipNewCall[moduleName]
 		return yaegiMiddlewareCheck(goPath, manifest, skip)
 
@@ -860,4 +864,65 @@ func checkRepoName(repository *github.Repository, moduleName string, manifest Ma
 	}
 
 	return nil
+}
+
+func dropSensitiveEnvVars() map[string]string {
+	bckEnviron := make(map[string]string)
+
+	for _, ev := range os.Environ() {
+		pair := strings.SplitN(ev, "=", 2)
+
+		key := strings.ToLower(pair[0])
+		if strings.Contains(key, "token") ||
+			strings.Contains(key, "password") ||
+			strings.Contains(key, "username") ||
+			strings.Contains(key, "_url") ||
+			strings.Contains(key, "_host") ||
+			strings.Contains(key, "_port") {
+			bckEnviron[pair[0]] = pair[1]
+			_ = os.Unsetenv(pair[0])
+		}
+	}
+
+	return bckEnviron
+}
+
+func safeIssueBody(err error) string {
+	msgBody := err.Error()
+
+	var repKeys []string
+	for _, ev := range os.Environ() {
+		pair := strings.SplitN(ev, "=", 2)
+
+		key := strings.ToLower(pair[0])
+		if strings.Contains(key, "token") ||
+			strings.Contains(key, "password") ||
+			strings.Contains(key, "username") {
+			repKeys = append(repKeys, pair[0], pair[1])
+		}
+
+		if strings.Contains(key, "_url") ||
+			strings.Contains(key, "_host") ||
+			strings.Contains(key, "_port") {
+			repKeys = append(repKeys, pair[0])
+
+			if len(pair[1]) > 5 {
+				repKeys = append(repKeys, pair[1])
+			}
+		}
+	}
+
+	sort.Slice(repKeys, func(i, j int) bool {
+		return len(repKeys[i]) > len(repKeys[j])
+	})
+
+	replacements := make([]string, 0, len(repKeys))
+	for _, key := range repKeys {
+		replacements = append(replacements, key, "xxx")
+	}
+
+	replacer := strings.NewReplacer(replacements...)
+	msgBody = replacer.Replace(msgBody)
+
+	return fmt.Sprintf(issueContent, msgBody)
 }
