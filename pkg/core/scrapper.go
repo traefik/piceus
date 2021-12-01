@@ -705,7 +705,7 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 		return fmt.Errorf("load of stdlib symbols: %w", err)
 	}
 
-	_, err := i.EvalWithContext(ctx, fmt.Sprintf(`import "%s"`, manifest.Import))
+	_, err := i.EvalWithContext(ctx, fmt.Sprintf(`import %q`, manifest.Import))
 	if err != nil {
 		return fmt.Errorf("the load of the plugin takes too much time(%s), or an error, inside the plugin, occurs during the load: %w", timeout, err)
 	}

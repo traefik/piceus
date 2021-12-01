@@ -37,6 +37,7 @@ linters-settings:
       - style
       - performance
     disabled-checks:
+      - httpNoBody
       - sloppyReassign
       - hugeParam
       - rangeValCopy
@@ -67,6 +68,9 @@ linters:
     - exhaustivestruct
     - ifshort
     - noctx
+    - varnamelen
+    - nilnil
+    - contextcheck
 
 issues:
   exclude-use-default: false
@@ -75,6 +79,7 @@ issues:
   exclude:
     - 'ST1000: at least one file in a package should have a package comment'
     - 'G304: Potential file inclusion via variable'
+    - 'G307: Deferring unsafe method "Close" on type "\*os.File"'
   exclude-rules:
     - path: (.+)_test.go
       linters:
