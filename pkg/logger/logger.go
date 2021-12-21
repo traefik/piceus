@@ -2,26 +2,28 @@ package logger
 
 import (
 	"os"
-	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 // Setup is configuring the logger.
-func Setup() {
+func Setup(level string) {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
 	log.Logger = zerolog.New(os.Stderr).With().Caller().Logger()
+	zerolog.DefaultContextLogger = &log.Logger
 
-	rawLevel := strings.ToLower(os.Getenv("LOG_LEVEL"))
+	logLevel, err := zerolog.ParseLevel(level)
+	if err != nil {
+		log.Debug().Err(err).
+			Str("LOG_LEVEL", level).
+			Msg("Unspecified or invalid log level, setting the level to default (INFO)...")
 
-	logLevel, err := zerolog.ParseLevel(rawLevel)
-	if err != nil || rawLevel == "" {
 		logLevel = zerolog.InfoLevel
 	}
 
 	zerolog.SetGlobalLevel(logLevel)
 
-	log.Debug().Msgf("Log level set to %s.", logLevel)
+	log.Trace().Msgf("Log level set to %s.", logLevel)
 }

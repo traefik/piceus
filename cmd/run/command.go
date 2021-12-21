@@ -2,10 +2,12 @@ package run
 
 import (
 	"github.com/ettle/strcase"
+	"github.com/traefik/piceus/pkg/logger"
 	"github.com/urfave/cli/v2"
 )
 
 const (
+	flagLogLevel            = "log-level"
 	flagGitHubToken         = "github-token"
 	flagServicesAccessToken = "services-access-token"
 	flagPluginURL           = "plugin-url"
@@ -26,6 +28,12 @@ func Command() *cli.Command {
 		Description: "Launch application piceus",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
+				Name:    flagLogLevel,
+				Usage:   "log level",
+				EnvVars: []string{strcase.ToSNAKE(flagLogLevel)},
+				Value:   "info",
+			},
+			&cli.StringFlag{
 				Name:     flagGitHubToken,
 				Usage:    "GitHub Token.",
 				EnvVars:  []string{strcase.ToSNAKE(flagGitHubToken)},
@@ -45,6 +53,8 @@ func Command() *cli.Command {
 			},
 		},
 		Action: func(cliCtx *cli.Context) error {
+			logger.Setup(cliCtx.String(flagLogLevel))
+
 			cfg := buildConfig(cliCtx)
 
 			return run(cliCtx.Context, cfg)
