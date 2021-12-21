@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	"github.com/google/go-github/v38/github"
+	"github.com/google/go-github/v41/github"
 	"golang.org/x/mod/module"
 )
 

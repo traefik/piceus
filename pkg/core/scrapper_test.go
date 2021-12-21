@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/google/go-github/v38/github"
+	"github.com/google/go-github/v41/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"

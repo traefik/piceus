@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/go-github/v38/github"
+	"github.com/google/go-github/v41/github"
 	"golang.org/x/mod/module"
 )
 
