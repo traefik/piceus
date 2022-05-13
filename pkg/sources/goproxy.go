@@ -22,7 +22,7 @@ type GoProxy struct {
 func (s *GoProxy) Get(_ context.Context, _ *github.Repository, gop string, mod module.Version) error {
 	// Creates temp archive storage
 
-	rootArchive, err := os.MkdirTemp("", "pilot-archives")
+	rootArchive, err := os.MkdirTemp("", "traefik-plugin-archives")
 	if err != nil {
 		return fmt.Errorf("failed to create temp archive storage: %w", err)
 	}
