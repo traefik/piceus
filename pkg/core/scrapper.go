@@ -603,9 +603,28 @@ func createMiddlewareSnippets(repository *github.Repository, testData map[string
 		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
 	}
 
+	k8s := map[string]interface{}{
+		"apiVersion": "traefik.containo.us/v1alpha1",
+		"kind":       "Middleware",
+		"metadata": map[string]interface{}{
+			"name":      "my-" + repository.GetName(),
+			"namespace": "my-namespace",
+		},
+		"spec": map[string]interface{}{
+			"plugin": map[string]interface{}{
+				repository.GetName(): testData,
+			},
+		},
+	}
+	k8sSnip, err := yaml.Marshal(k8s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
+	}
+
 	return map[string]interface{}{
 		"toml": string(tomlSnip),
 		"yaml": string(yamlSnip),
+		"k8s":  string(k8sSnip),
 	}, nil
 }
 
