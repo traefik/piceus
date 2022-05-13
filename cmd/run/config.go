@@ -2,13 +2,6 @@ package run
 
 import "github.com/urfave/cli/v2"
 
-// Pilot holds the pilot configuration.
-type Pilot struct {
-	GithubToken         string
-	ServicesAccessToken string
-	PluginURL           string
-}
-
 // Tracing holds the tracing configuration.
 type Tracing struct {
 	Endpoint    string
@@ -19,17 +12,17 @@ type Tracing struct {
 
 // Config represents the configuration for the run command.
 type Config struct {
-	Pilot   Pilot
-	Tracing Tracing
+	GithubToken         string
+	ServicesAccessToken string
+	PluginURL           string
+	Tracing             Tracing
 }
 
 func buildConfig(cliCtx *cli.Context) Config {
 	return Config{
-		Pilot: Pilot{
-			GithubToken:         cliCtx.String(flagGitHubToken),
-			ServicesAccessToken: cliCtx.String(flagServicesAccessToken),
-			PluginURL:           cliCtx.String(flagPluginURL),
-		},
+		GithubToken:         cliCtx.String(flagGitHubToken),
+		ServicesAccessToken: cliCtx.String(flagServicesAccessToken),
+		PluginURL:           cliCtx.String(flagPluginURL),
 		Tracing: Tracing{
 			Endpoint:    cliCtx.String(flagTracingEndpoint),
 			Username:    cliCtx.String(flagTracingUsername),
