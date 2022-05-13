@@ -46,8 +46,8 @@ const (
 const searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
 
 const (
-	issueTitle   = "[Traefik Pilot] Traefik Plugin Analyzer has detected a problem."
-	issueContent = `The plugin was not imported into Traefik Pilot.
+	issueTitle   = "[Traefik] Plugin Analyzer has detected a problem."
+	issueContent = `The plugin was not imported into Traefik Plugin Catalog.
 
 Cause:
 ` + "```" + `
@@ -55,7 +55,7 @@ Cause:
 ` + "```" + `
 Traefik Plugin Analyzer will restart when you will close this issue.
 
-If you believe there is a problem with the Analyzer or this issue is the result of a false positive, please contact [us](https://community.containo.us/).
+If you believe there is a problem with the Analyzer or this issue is the result of a false positive, please contact [us](https://community.traefik.io/).
 `
 )
 
@@ -286,7 +286,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	// Creates temp GOPATH
 
-	gop, err := os.MkdirTemp("", "pilot-gop")
+	gop, err := os.MkdirTemp("", "traefik-plugin-gop")
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
@@ -603,9 +603,28 @@ func createMiddlewareSnippets(repository *github.Repository, testData map[string
 		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
 	}
 
+	k8s := map[string]interface{}{
+		"apiVersion": "traefik.containo.us/v1alpha1",
+		"kind":       "Middleware",
+		"metadata": map[string]interface{}{
+			"name":      "my-" + repository.GetName(),
+			"namespace": "my-namespace",
+		},
+		"spec": map[string]interface{}{
+			"plugin": map[string]interface{}{
+				repository.GetName(): testData,
+			},
+		},
+	}
+	k8sSnip, err := yaml.Marshal(k8s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
+	}
+
 	return map[string]interface{}{
 		"toml": string(tomlSnip),
 		"yaml": string(yamlSnip),
+		"k8s":  string(k8sSnip),
 	}, nil
 }
 
