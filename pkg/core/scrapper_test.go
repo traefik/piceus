@@ -193,6 +193,17 @@ func Test_createMiddlewareSnippets(t *testing.T) {
                     Headers:
                         Foo: Bar
 `,
+		"k8s": `apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+    name: my-plugintest
+    namespace: my-namespace
+spec:
+    plugin:
+        plugintest:
+            Headers:
+                Foo: Bar
+`,
 	}
 
 	assert.Equal(t, expected, snippets)
