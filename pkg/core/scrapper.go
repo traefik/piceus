@@ -46,8 +46,8 @@ const (
 const searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
 
 const (
-	issueTitle   = "[Traefik Pilot] Traefik Plugin Analyzer has detected a problem."
-	issueContent = `The plugin was not imported into Traefik Pilot.
+	issueTitle   = "[Traefik] Plugin Analyzer has detected a problem."
+	issueContent = `The plugin was not imported into Traefik Plugin Catalog.
 
 Cause:
 ` + "```" + `
@@ -55,7 +55,7 @@ Cause:
 ` + "```" + `
 Traefik Plugin Analyzer will restart when you will close this issue.
 
-If you believe there is a problem with the Analyzer or this issue is the result of a false positive, please contact [us](https://community.containo.us/).
+If you believe there is a problem with the Analyzer or this issue is the result of a false positive, please contact [us](https://community.traefik.io/).
 `
 )
 
@@ -286,7 +286,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	// Creates temp GOPATH
 
-	gop, err := os.MkdirTemp("", "pilot-gop")
+	gop, err := os.MkdirTemp("", "traefik-plugin-gop")
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to create temp GOPATH: %w", err)

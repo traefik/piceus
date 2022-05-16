@@ -1,6 +1,6 @@
 # Camponotus Piceus
 
-- [builds](https://pilot.semaphoreci.com/projects/piceus)
+- [builds](https://traefiklabs.semaphoreci.com/projects/piceus)
 
 ## CLI
 
@@ -15,9 +15,10 @@ DESCRIPTION:
    Launch application piceus
 
 OPTIONS:
+   --log-level value              Log level (default: "info") [$LOG_LEVEL]
    --github-token value           GitHub Token. [$GITHUB_TOKEN]
-   --services-access-token value  Pilot Services Access Token [$PILOT_SERVICES_ACCESS_TOKEN]
-   --plugin-url value             Plugin Service URL [$PILOT_PLUGIN_URL]
+   --services-access-token value  Services Access Token [$SERVICES_ACCESS_TOKEN]
+   --plugin-url value             Plugin Service URL [$PLUGIN_URL]
    --tracing-endpoint value       Endpoint to send traces (default: "https://collector.infra.traefiklabs.tech") [$TRACING_ENDPOINT]
    --tracing-username value       Username to connect to Jaeger (default: "jaeger") [$TRACING_USERNAME]
    --tracing-password value       Password to connect to Jaeger (default: "jaeger") [$TRACING_PASSWORD]

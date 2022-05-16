@@ -26,10 +26,10 @@ func run(ctx context.Context, cfg Config) error {
 	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
 	defer func() { _ = bsp.Shutdown(ctx) }()
 
-	ghClient := newGitHubClient(ctx, cfg.Pilot.GithubToken)
+	ghClient := newGitHubClient(ctx, cfg.GithubToken)
 	gpClient := goproxy.NewClient("")
 
-	pgClient := plugin.New(cfg.Pilot.PluginURL, cfg.Pilot.ServicesAccessToken)
+	pgClient := plugin.New(cfg.PluginURL, cfg.ServicesAccessToken)
 
 	var srcs core.Sources
 	if _, ok := os.LookupEnv(core.PrivateModeEnv); ok {

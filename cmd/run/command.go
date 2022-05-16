@@ -29,7 +29,7 @@ func Command() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    flagLogLevel,
-				Usage:   "log level",
+				Usage:   "Log level",
 				EnvVars: []string{strcase.ToSNAKE(flagLogLevel)},
 				Value:   "info",
 			},
@@ -41,14 +41,14 @@ func Command() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     flagServicesAccessToken,
-				Usage:    "Pilot Services Access Token",
-				EnvVars:  []string{"PILOT_" + strcase.ToSNAKE(flagServicesAccessToken)},
+				Usage:    "Services Access Token",
+				EnvVars:  []string{strcase.ToSNAKE(flagServicesAccessToken)},
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     flagPluginURL,
 				Usage:    "Plugin Service URL",
-				EnvVars:  []string{"PILOT_" + strcase.ToSNAKE(flagPluginURL)},
+				EnvVars:  []string{strcase.ToSNAKE(flagPluginURL)},
 				Required: true,
 			},
 		},
