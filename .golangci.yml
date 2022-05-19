@@ -51,8 +51,10 @@ linters:
     - interfacer # deprecated
     - scopelint # deprecated
     - golint # deprecated
+    - exhaustivestruct # deprecated
     - sqlclosecheck # not relevant (SQL)
     - rowserrcheck # not relevant (SQL)
+    - execinquery # not relevant (SQL)
     - cyclop # duplicate of gocyclo
     - lll
     - dupl
@@ -65,12 +67,14 @@ linters:
     - nlreturn
     - wsl
     - exhaustive
-    - exhaustivestruct
+    - exhaustruct
     - ifshort
     - noctx
     - varnamelen
     - nilnil
     - contextcheck
+    - nonamedreturns
+    - forcetypeassert
 
 issues:
   exclude-use-default: false
