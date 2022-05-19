@@ -692,7 +692,13 @@ func parseImageURL(repository *github.Repository, latestVersion, imgPath string)
 	return pictURL.String()
 }
 
-func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) error {
+func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("panic during the call of the function: %v", rec)
+		}
+	}()
+
 	tearDown := dropSensitiveEnvVars()
 	defer tearDown()
 
@@ -778,7 +784,7 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 func safeFnCall(fn reflect.Value, args []reflect.Value) (result []reflect.Value, errCall error) {
 	defer func() {
 		if err := recover(); err != nil {
-			errCall = fmt.Errorf("panic during the call of the function: %v", err)
+			errCall = fmt.Errorf("panic from yaegi: %v", err)
 		}
 	}()
 
