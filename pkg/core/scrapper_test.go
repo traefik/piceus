@@ -328,6 +328,39 @@ func TestScrapper_process(t *testing.T) {
 	assert.NotNil(t, p)
 }
 
+func TestScrapper_process_all(t *testing.T) {
+	t.Skip("for debug purpose only")
+
+	token := ""
+	ctx := context.Background()
+
+	client := oauth2.NewClient(ctx, oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token}))
+	client.Transport = otelhttp.NewTransport(client.Transport)
+
+	ghClient := github.NewClient(client)
+	pgClient := plugin.New("", "") // ignored for this test
+	gpClient := goproxy.NewClient("")
+	srcs := &sources.GitHub{Client: ghClient}
+
+	scrapper := NewScrapper(ghClient, gpClient, pgClient, srcs)
+
+	repositories, err := scrapper.search(ctx)
+	assert.NoError(t, err)
+
+	for _, repository := range repositories {
+		logger := log.With().Str("repo_name", repository.GetFullName()).Logger()
+
+		if scrapper.isSkipped(logger.WithContext(ctx), repository) {
+			continue
+		}
+
+		t.Log(repository.GetFullName())
+		//nolint:errcheck,gosec // test here only for panic debugging purpose
+		scrapper.process(ctx, repository)
+		// look for the first to panic
+	}
+}
+
 func Test_safeIssueBody(t *testing.T) {
 	t.Setenv("FEATURE_SERVICE_PORT", "tcp://172.20.236.87:80")
 	t.Setenv("FEATURE_SERVICE_PORT_80_TCP", "tcp://172.20.236.87:80")
