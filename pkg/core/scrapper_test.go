@@ -355,9 +355,10 @@ func TestScrapper_process_all(t *testing.T) {
 		}
 
 		t.Log(repository.GetFullName())
-		//nolint:errcheck,gosec // test here only for panic debugging purpose
-		scrapper.process(ctx, repository)
-		// look for the first to panic
+		_, err := scrapper.process(ctx, repository)
+		if err != nil {
+			t.Logf("%s: %v", repository.GetFullName(), err)
+		}
 	}
 }
 
