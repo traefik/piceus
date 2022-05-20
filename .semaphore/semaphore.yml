@@ -39,6 +39,8 @@ global_job_config:
       - curl -sfL https://gist.githubusercontent.com/traefiker/6d7ac019c11d011e4f131bb2cca8900e/raw/goreleaser.sh | bash -s -- -b "${GOPATH}/bin"
       - checkout
       - cache restore "mod-${SEMAPHORE_PROJECT_NAME}-${SEMAPHORE_GIT_BRANCH}-$(checksum go.mod),mod-${SEMAPHORE_PROJECT_NAME}-$(checksum go.mod),mod-${SEMAPHORE_PROJECT_NAME}"
+      - docker buildx create --use
+      - docker run --privileged --rm tonistiigi/binfmt --install all
 blocks:
   - name: Warm cache
     dependencies: []
@@ -61,7 +63,9 @@ blocks:
         - name: Build on branches
           commands:
             - make
-            - make image publish-latest
+            - make multi-arch-image-latest
+            - make multi-arch-image-${SEMAPHORE_GIT_BRANCH}-${SEMAPHORE_GIT_SHA:0:7}-$(date +%s)
+
   - name: Build on PR
     dependencies: ["Warm cache"]
     run:
@@ -71,6 +75,8 @@ blocks:
         - name: Run build
           commands:
             - make
+            - make multi-arch-image-${SEMAPHORE_GIT_PR_NUMBER}
+
   - name: Tag - Build release
     dependencies: ["Warm cache"]
     run:
@@ -80,4 +86,4 @@ blocks:
         - name: Tag - Build release
           commands:
             - make
-            - make image publish
+            - make multi-arch-image-${SEMAPHORE_GIT_TAG_NAME}
