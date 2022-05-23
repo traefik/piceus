@@ -86,9 +86,7 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, s
 
 		// TODO improve blacklist storage
 		blacklist: map[string]struct{}{
-			"containous/plugintestxxx":                  {},
-			"chiztour/traefik-plugin-jwt-external-auth": {},
-			"alekitto/traefik-aws-lambda-plugin":        {},
+			"containous/plugintestxxx": {},
 		},
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
