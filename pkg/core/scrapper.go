@@ -46,8 +46,9 @@ const (
 const searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
 
 const (
-	issueTitle   = "[Traefik Plugin Catalog] Plugin Analyzer has detected a problem."
-	issueContent = `The plugin was not imported into Traefik Plugin Catalog.
+	oldIssueTitle = "[Traefik Pilot] Traefik Plugin Analyzer has detected a problem." // must be keep forever.
+	issueTitle    = "[Traefik Plugin Catalog] Plugin Analyzer has detected a problem."
+	issueContent  = `The plugin was not imported into Traefik Plugin Catalog.
 
 Cause:
 ` + "```" + `
@@ -183,7 +184,7 @@ func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) 
 	}
 
 	for _, issue := range issues {
-		if issue.GetTitle() == issueTitle {
+		if issue.GetTitle() == issueTitle || issue.GetTitle() == oldIssueTitle {
 			return true
 		}
 	}
