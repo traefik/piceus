@@ -59,6 +59,9 @@ blocks:
     run:
       when: "branch = 'master'"
     task:
+      env_vars:
+        - name: DOCKER_BUILDX_ARGS
+          value: "--push"
       jobs:
         - name: Build on branches
           commands:
@@ -71,6 +74,9 @@ blocks:
     run:
       when: "pull_request =~ '.*'"
     task:
+      env_vars:
+        - name: DOCKER_BUILDX_ARGS
+          value: "--push"
       jobs:
         - name: Run build
           commands:
@@ -82,6 +88,9 @@ blocks:
     run:
       when: "tag =~ '^v'"
     task:
+      env_vars:
+        - name: DOCKER_BUILDX_ARGS
+          value: "--push"
       jobs:
         - name: Tag - Build release
           commands:
