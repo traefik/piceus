@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/ettle/strcase v0.1.1
 	github.com/google/go-cmp v0.5.8
-	github.com/google/go-github/v41 v41.0.0
+	github.com/google/go-github/v44 v44.1.0
 	github.com/ldez/grignotin v0.4.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pelletier/go-toml v1.9.5
