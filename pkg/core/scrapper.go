@@ -41,9 +41,14 @@ const (
 	typeProvider   = "provider"
 )
 
-// searchQuery the query used to search plugins on GitHub.
-// https://help.github.com/en/github/searching-for-information-on-github/searching-for-repositories
-const searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
+const (
+	// searchQuery the query used to search plugins on GitHub.
+	// https://help.github.com/en/github/searching-for-information-on-github/searching-for-repositories
+	searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
+
+	// searchQueryIssues the query used to search issues opened by the bot account.
+	searchQueryIssues = "is:open is:issue is:public author:traefiker"
+)
 
 const (
 	oldIssueTitle = "[Traefik Pilot] Traefik Plugin Analyzer has detected a problem." // must be keep forever.
@@ -102,6 +107,12 @@ func (s *Scrapper) Run(ctx context.Context) error {
 	ctx, span := s.tracer.Start(ctx, "scrapper_run")
 	defer span.End()
 
+	reposWithExistingIssue, err := s.searchReposWithExistingIssue(ctx)
+	if err != nil {
+		span.RecordError(err)
+		return err
+	}
+
 	repositories, err := s.search(ctx)
 	if err != nil {
 		span.RecordError(err)
@@ -111,7 +122,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 	for _, repository := range repositories {
 		logger := log.With().Str("repo_name", repository.GetFullName()).Logger()
 
-		if s.isSkipped(logger.WithContext(ctx), repository) {
+		if s.isSkipped(logger.WithContext(ctx), reposWithExistingIssue, repository) {
 			continue
 		}
 
@@ -121,6 +132,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 
 			errResp := &github.ErrorResponse{}
 			if errors.As(err, &errResp) && errResp.Response.StatusCode >= http.StatusInternalServerError {
+				span.RecordError(err)
 				continue
 			}
 
@@ -147,49 +159,48 @@ func (s *Scrapper) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Scrapper) isSkipped(ctx context.Context, repository *github.Repository) bool {
+func (s *Scrapper) isSkipped(ctx context.Context, reposWithExistingIssue []string, repository *github.Repository) bool {
 	if _, ok := s.blacklist[repository.GetFullName()]; ok {
 		return true
 	}
 
-	if s.hasIssue(ctx, repository) {
-		log.Ctx(ctx).Info().Msg("The issue is still opened.")
+	if contains(reposWithExistingIssue, repository.GetFullName()) {
+		log.Ctx(ctx).Debug().Msg("The issue is still opened.")
 		return true
 	}
 
 	return false
 }
 
-func (s *Scrapper) hasIssue(ctx context.Context, repository *github.Repository) bool {
-	ctx, span := s.tracer.Start(ctx, "scrapper_hasIssue_"+*repository.Name)
-	defer span.End()
-
-	user, _, err := s.gh.Users.Get(ctx, "")
-	if err != nil {
-		span.RecordError(err)
-		log.Ctx(ctx).Error().Err(err).Msg("Failed to get current GitHub user")
-		return false
+func (s *Scrapper) searchReposWithExistingIssue(ctx context.Context) ([]string, error) {
+	opts := &github.SearchOptions{
+		Sort:        "updated",
+		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
-	opts := &github.IssueListByRepoOptions{
-		State:   "open",
-		Creator: user.GetLogin(),
-	}
+	var all []string
 
-	issues, _, err := s.gh.Issues.ListByRepo(ctx, repository.GetOwner().GetLogin(), repository.GetName(), opts)
-	if err != nil {
-		span.RecordError(err)
-		log.Ctx(ctx).Error().Err(err).Msg("Failed to list issues on repo")
-		return false
-	}
-
-	for _, issue := range issues {
-		if issue.GetTitle() == issueTitle || issue.GetTitle() == oldIssueTitle {
-			return true
+	for {
+		issues, resp, err := s.gh.Search.Issues(ctx, searchQueryIssues, opts)
+		if err != nil {
+			return nil, err
 		}
+
+		for _, issue := range issues.Issues {
+			if issue.GetTitle() == oldIssueTitle || issue.GetTitle() == issueTitle {
+				// Creates the fullname of the repository.
+				all = append(all, strings.TrimPrefix(issue.GetRepositoryURL(), "https://api.github.com/repos/"))
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opts.Page = resp.NextPage
 	}
 
-	return false
+	return all, nil
 }
 
 func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
@@ -950,4 +961,14 @@ func safeIssueBody(err error) string {
 	msgBody = replacer.Replace(msgBody)
 
 	return fmt.Sprintf(issueContent, msgBody)
+}
+
+func contains(values []string, value string) bool {
+	for _, v := range values {
+		if v == value {
+			return true
+		}
+	}
+
+	return false
 }
