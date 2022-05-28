@@ -15,7 +15,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/go-github/v44/github"
+	"github.com/google/go-github/v45/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pelletier/go-toml"
