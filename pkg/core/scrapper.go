@@ -92,7 +92,8 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, s
 
 		// TODO improve blacklist storage
 		blacklist: map[string]struct{}{
-			"containous/plugintestxxx": {},
+			"containous/plugintestxxx":          {},
+			"portofrotterdam/environmentheader": {},
 		},
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
@@ -121,6 +122,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 
 	for _, repository := range repositories {
 		logger := log.With().Str("repo_name", repository.GetFullName()).Logger()
+		logger.Debug().Msg("Processing repository")
 
 		if s.isSkipped(logger.WithContext(ctx), reposWithExistingIssue, repository) {
 			continue
