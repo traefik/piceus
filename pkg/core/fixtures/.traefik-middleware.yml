@@ -9,8 +9,23 @@ compatibility: TODO
 summary: Simple example plugin.
 
 iconPath: icon.png
-bannerPath: http://example.org/a/banner.png
+bannerPath: https://example.org/a/banner.png
 
 testData:
   Headers:
     Foo: Bar
+  trustIP:
+    - 10.0.0.0/8
+    - 172.0.0.0/8
+    - 192.0.0.0/8
+  allowedGroups:
+    - ou=mathematicians,dc=example,dc=com
+    - ou=foo,ou=scientists,dc=example,dc=com
+  valuesInt:
+    - 1
+    - 2
+    - 3
+  valuesFloat:
+    - 1
+    - 2.01
+    - 3.01

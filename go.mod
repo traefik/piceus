@@ -10,8 +10,8 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pelletier/go-toml v1.9.5
 	github.com/rs/zerolog v1.27.0
-	github.com/stretchr/testify v1.7.5
-	github.com/traefik/paerser v0.1.5
+	github.com/stretchr/testify v1.8.0
+	github.com/traefik/paerser v0.1.6
 	github.com/traefik/yaegi v0.13.0
 	github.com/urfave/cli/v2 v2.10.3
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.18.0
@@ -46,7 +46,6 @@ require (
 	google.golang.org/api v0.40.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 retract v1.10.2 // error during tag creation

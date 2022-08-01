@@ -67,10 +67,29 @@ func Test_loadManifestContent(t *testing.T) {
 				Compatibility: "TODO",
 				Summary:       "Simple example plugin.",
 				IconPath:      "icon.png",
-				BannerPath:    "http://example.org/a/banner.png",
+				BannerPath:    "https://example.org/a/banner.png",
 				TestData: map[string]interface{}{
 					"Headers": map[string]interface{}{
 						"Foo": "Bar",
+					},
+					"trustIP": []interface{}{
+						"10.0.0.0/8",
+						"172.0.0.0/8",
+						"192.0.0.0/8",
+					},
+					"allowedGroups": []interface{}{
+						"ou=mathematicians,dc=example,dc=com",
+						"ou=foo,ou=scientists,dc=example,dc=com",
+					},
+					"valuesFloat": []interface{}{
+						float64(1),
+						2.01,
+						3.01,
+					},
+					"valuesInt": []interface{}{
+						int64(1),
+						int64(2),
+						int64(3),
 					},
 				},
 			},
