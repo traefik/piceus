@@ -1,5 +1,5 @@
 run:
-  deadline: 5m
+  timeout: 5m
   skip-files: [ ]
   skip-dirs: [ ]
 
@@ -89,6 +89,7 @@ issues:
       linters:
         - goconst
         - funlen
+        - nosnakecase
     - path: pkg/core/scrapper.go
       text: Function 'process' is too long
     - path: pkg/core/scrapper.go
@@ -97,3 +98,5 @@ issues:
       text: 'cyclomatic complexity \d+ of func `\(\*Scrapper\).process` is high'
     - path: pkg/sources/github.go
       text: 'G110: Potential DoS vulnerability via decompression bomb'
+    - path: pkg/sources/github.go
+      text: '(O_WRONLY|O_CREATE|O_TRUNC) contains underscore'
