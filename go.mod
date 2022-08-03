@@ -1,6 +1,6 @@
 module github.com/traefik/piceus
 
-go 1.17
+go 1.18
 
 require (
 	github.com/ettle/strcase v0.1.1
@@ -12,7 +12,7 @@ require (
 	github.com/rs/zerolog v1.27.0
 	github.com/stretchr/testify v1.8.0
 	github.com/traefik/paerser v0.1.6
-	github.com/traefik/yaegi v0.13.0
+	github.com/traefik/yaegi v0.14.0
 	github.com/urfave/cli/v2 v2.10.3
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.18.0
 	go.opentelemetry.io/otel v0.18.0
