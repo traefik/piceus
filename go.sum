@@ -163,8 +163,8 @@ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PKk=
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
-github.com/traefik/paerser v0.1.8 h1:DmX/v9KwWAFvRr5A/XQzLLfd1BSWgh710q+dZJmjZ+c=
-github.com/traefik/paerser v0.1.8/go.mod h1:Dk3Bfz6Zyj13/S8pJyRdx/FNvXlsVRVbtp0UK4ZSiA0=
+github.com/traefik/paerser v0.1.9 h1:x5hZafOt/yogLvr6upoSOYIAn2nh2GsnLb236MOzd4I=
+github.com/traefik/paerser v0.1.9/go.mod h1:Dk3Bfz6Zyj13/S8pJyRdx/FNvXlsVRVbtp0UK4ZSiA0=
 github.com/traefik/yaegi v0.14.1 h1:t0ssyzeZCWTFGd/JnVuDxH/slMQfYg+2CDD4dLW/rU0=
 github.com/traefik/yaegi v0.14.1/go.mod h1:AVRxhaI2G+nUsaM1zyktzwXn69G3t/AuTDrCiTds9p0=
 github.com/urfave/cli/v2 v2.10.3 h1:oi571Fxz5aHugfBAJd5nkwSk3fzATXtMlpxdLylSCMo=
