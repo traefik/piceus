@@ -51,6 +51,8 @@ linters:
     - interfacer # deprecated
     - scopelint # deprecated
     - golint # deprecated
+    - structcheck # deprecated
+    - ifshort # deprecated
     - exhaustivestruct # deprecated
     - sqlclosecheck # not relevant (SQL)
     - rowserrcheck # not relevant (SQL)
@@ -68,7 +70,6 @@ linters:
     - wsl
     - exhaustive
     - exhaustruct
-    - ifshort
     - noctx
     - varnamelen
     - nilnil
