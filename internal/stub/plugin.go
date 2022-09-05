@@ -20,6 +20,7 @@ func main() {
 		}
 	})
 
+	//nolint:gosec // only for testing purpose.
 	err := http.ListenAndServe(":8666", mux)
 	if err != nil {
 		log.Fatal().Err(err).Msg("error")

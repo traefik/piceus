@@ -10,8 +10,6 @@ linters-settings:
       - fieldalignment
   gocyclo:
     min-complexity: 13
-  maligned:
-    suggest-new: true
   goconst:
     min-len: 5
     min-occurrences: 3
@@ -43,17 +41,25 @@ linters-settings:
       - rangeValCopy
       - octalLiteral
       - paramTypeCombine # already handle by gofumpt.extra-rules
+  gosec:
+    excludes:
+      - G304 # Potential file inclusion via variable
+      - G307 # Deferring unsafe method "Close" on type "\*os.File"
 
 linters:
   enable-all: true
   disable:
-    - maligned # deprecated
-    - interfacer # deprecated
-    - scopelint # deprecated
-    - golint # deprecated
-    - structcheck # deprecated
-    - ifshort # deprecated
+    - deadcode # deprecated
     - exhaustivestruct # deprecated
+    - golint # deprecated
+    - ifshort # deprecated
+    - interfacer # deprecated
+    - maligned # deprecated
+    - nosnakecase # deprecated
+    - scopelint # deprecated
+    - scopelint # deprecated
+    - structcheck # deprecated
+    - varcheck # deprecated
     - sqlclosecheck # not relevant (SQL)
     - rowserrcheck # not relevant (SQL)
     - execinquery # not relevant (SQL)
@@ -83,8 +89,7 @@ issues:
   max-same-issues: 0
   exclude:
     - 'ST1000: at least one file in a package should have a package comment'
-    - 'G304: Potential file inclusion via variable'
-    - 'G307: Deferring unsafe method "Close" on type "\*os.File"'
+    - 'package-comments: should have a package comment'
   exclude-rules:
     - path: (.+)_test.go
       linters:
@@ -99,5 +104,3 @@ issues:
       text: 'cyclomatic complexity \d+ of func `\(\*Scrapper\).process` is high'
     - path: pkg/sources/github.go
       text: 'G110: Potential DoS vulnerability via decompression bomb'
-    - path: pkg/sources/github.go
-      text: '(O_WRONLY|O_CREATE|O_TRUNC) contains underscore'
