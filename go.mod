@@ -12,7 +12,7 @@ require (
 	github.com/rs/zerolog v1.27.0
 	github.com/stretchr/testify v1.8.0
 	github.com/traefik/paerser v0.1.9
-	github.com/traefik/yaegi v0.14.1
+	github.com/traefik/yaegi v0.14.2
 	github.com/urfave/cli/v2 v2.10.3
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.18.0
 	go.opentelemetry.io/otel v0.18.0
