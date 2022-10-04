@@ -29,7 +29,7 @@ func run(ctx context.Context, cfg Config) error {
 	ghClient := newGitHubClient(ctx, cfg.GithubToken)
 	gpClient := goproxy.NewClient("")
 
-	pgClient := plugin.New(cfg.PluginURL, cfg.ServicesAccessToken)
+	pgClient := plugin.New(cfg.PluginURL)
 
 	var srcs core.Sources
 	if _, ok := os.LookupEnv(core.PrivateModeEnv); ok {

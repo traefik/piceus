@@ -12,17 +12,15 @@ type Tracing struct {
 
 // Config represents the configuration for the run command.
 type Config struct {
-	GithubToken         string
-	ServicesAccessToken string
-	PluginURL           string
-	Tracing             Tracing
+	GithubToken string
+	PluginURL   string
+	Tracing     Tracing
 }
 
 func buildConfig(cliCtx *cli.Context) Config {
 	return Config{
-		GithubToken:         cliCtx.String(flagGitHubToken),
-		ServicesAccessToken: cliCtx.String(flagServicesAccessToken),
-		PluginURL:           cliCtx.String(flagPluginURL),
+		GithubToken: cliCtx.String(flagGitHubToken),
+		PluginURL:   cliCtx.String(flagPluginURL),
 		Tracing: Tracing{
 			Endpoint:    cliCtx.String(flagTracingEndpoint),
 			Username:    cliCtx.String(flagTracingUsername),
