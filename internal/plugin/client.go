@@ -27,17 +27,15 @@ func (a *APIError) Error() string {
 
 // Client for the plugin service.
 type Client struct {
-	baseURL     string
-	httpClient  *http.Client
-	accessToken string
+	baseURL    string
+	httpClient *http.Client
 }
 
 // New creates a plugin service client.
-func New(baseURL, accessToken string) *Client {
+func New(baseURL string) *Client {
 	return &Client{
-		baseURL:     baseURL,
-		httpClient:  &http.Client{Timeout: 10 * time.Second, Transport: otelhttp.NewTransport(http.DefaultTransport)},
-		accessToken: accessToken,
+		baseURL:    baseURL,
+		httpClient: &http.Client{Timeout: 10 * time.Second, Transport: otelhttp.NewTransport(http.DefaultTransport)},
 	}
 }
 
@@ -56,10 +54,6 @@ func (c *Client) Create(ctx context.Context, p Plugin) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL.String(), bytes.NewBuffer(data))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	if c.accessToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.accessToken)
 	}
 
 	resp, err := c.httpClient.Do(req)
@@ -107,10 +101,6 @@ func (c *Client) Update(ctx context.Context, p Plugin) error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	if c.accessToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.accessToken)
-	}
-
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to call API: %w", err)
@@ -143,10 +133,6 @@ func (c *Client) GetByName(ctx context.Context, name string) (*Plugin, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	if c.accessToken != "" {
-		req.Header.Set("Authorization", "Bearer "+c.accessToken)
 	}
 
 	resp, err := c.httpClient.Do(req)

@@ -332,7 +332,7 @@ func TestScrapper_process(t *testing.T) {
 	client.Transport = otelhttp.NewTransport(client.Transport)
 
 	ghClient := github.NewClient(client)
-	pgClient := plugin.New("", "") // ignored for this test
+	pgClient := plugin.New("") // ignored for this test
 	gpClient := goproxy.NewClient("")
 	srcs := &sources.GitHub{Client: ghClient}
 
@@ -357,7 +357,7 @@ func TestScrapper_process_all(t *testing.T) {
 	client.Transport = otelhttp.NewTransport(client.Transport)
 
 	ghClient := github.NewClient(client)
-	pgClient := plugin.New("", "") // ignored for this test
+	pgClient := plugin.New("") // ignored for this test
 	gpClient := goproxy.NewClient("")
 	srcs := &sources.GitHub{Client: ghClient}
 

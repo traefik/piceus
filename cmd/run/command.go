@@ -7,10 +7,9 @@ import (
 )
 
 const (
-	flagLogLevel            = "log-level"
-	flagGitHubToken         = "github-token"
-	flagServicesAccessToken = "services-access-token"
-	flagPluginURL           = "plugin-url"
+	flagLogLevel    = "log-level"
+	flagGitHubToken = "github-token"
+	flagPluginURL   = "plugin-url"
 )
 
 const (
@@ -37,12 +36,6 @@ func Command() *cli.Command {
 				Name:     flagGitHubToken,
 				Usage:    "GitHub Token.",
 				EnvVars:  []string{strcase.ToSNAKE(flagGitHubToken)},
-				Required: true,
-			},
-			&cli.StringFlag{
-				Name:     flagServicesAccessToken,
-				Usage:    "Services Access Token",
-				EnvVars:  []string{strcase.ToSNAKE(flagServicesAccessToken)},
 				Required: true,
 			},
 			&cli.StringFlag{
