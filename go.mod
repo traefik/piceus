@@ -1,6 +1,6 @@
 module github.com/traefik/piceus
 
-go 1.18
+go 1.19
 
 require (
 	github.com/ettle/strcase v0.1.1
@@ -9,8 +9,8 @@ require (
 	github.com/ldez/grignotin v0.4.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pelletier/go-toml v1.9.5
-	github.com/rs/zerolog v1.27.0
-	github.com/stretchr/testify v1.8.0
+	github.com/rs/zerolog v1.28.0
+	github.com/stretchr/testify v1.8.1
 	github.com/traefik/paerser v0.1.9
 	github.com/traefik/yaegi v0.14.3
 	github.com/urfave/cli/v2 v2.10.3
@@ -19,8 +19,8 @@ require (
 	go.opentelemetry.io/otel/exporters/trace/jaeger v0.18.0
 	go.opentelemetry.io/otel/sdk v0.18.0
 	go.opentelemetry.io/otel/trace v0.18.0
-	golang.org/x/mod v0.5.1
-	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
+	golang.org/x/mod v0.7.0
+	golang.org/x/oauth2 v0.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -29,7 +29,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
-	github.com/golang/protobuf v1.4.3 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
@@ -39,13 +39,12 @@ require (
 	go.opentelemetry.io/contrib v0.18.0 // indirect
 	go.opentelemetry.io/otel/metric v0.18.0 // indirect
 	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e // indirect
-	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
+	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20220627191245-f75cf1eec38b // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	golang.org/x/sys v0.4.0 // indirect
 	google.golang.org/api v0.40.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.25.0 // indirect
+	google.golang.org/protobuf v1.28.0 // indirect
 )
 
 retract v1.10.2 // error during tag creation
