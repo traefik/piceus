@@ -47,5 +47,7 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 )
 
-retract v1.10.2 // error during tag creation
-retract v1.12.2 // error during tag creation
+retract (
+	v1.12.2 // error during tag creation
+	v1.10.2 // error during tag creation
+)
