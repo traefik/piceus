@@ -48,3 +48,4 @@ require (
 )
 
 retract v1.10.2 // error during tag creation
+retract v1.12.2 // error during tag creation
