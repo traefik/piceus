@@ -82,6 +82,7 @@ linters:
     - contextcheck
     - nonamedreturns
     - forcetypeassert
+    - ireturn
 
 issues:
   exclude-use-default: false
