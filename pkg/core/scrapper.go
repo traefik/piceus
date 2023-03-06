@@ -94,7 +94,6 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, s
 		blacklist: map[string]struct{}{
 			"containous/plugintestxxx":     {},
 			"esenac/traefik-custom-router": {}, // The repo doesn't allow issues https://github.com/esenac/traefik-custom-router
-			"darkweak/souin":               {}, // temporary exclusion.
 		},
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
