@@ -21,4 +21,11 @@ type Plugin struct {
 	Stars         int                    `json:"stars,omitempty"`
 	Snippet       map[string]interface{} `json:"snippet,omitempty"`
 	CreatedAt     time.Time              `json:"createdAt"`
+	Hashes        []Hash                 `json:"hashes,omitempty"`
+}
+
+// Hash The plugin hash tuple..
+type Hash struct {
+	Name string `json:"name,omitempty" bson:"name"`
+	Hash string `json:"hash,omitempty" bson:"hash"`
 }
