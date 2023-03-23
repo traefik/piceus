@@ -72,9 +72,9 @@ func s3Flags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:     flagS3Key,
-			Usage:    "Key of file within the s3 Bucket",
-			EnvVars:  []string{strcase.ToSNAKE(flagS3Bucket)},
-			Value:    "plugindb.json",
+			Usage:    "Key of file within the S3 Bucket",
+			EnvVars:  []string{strcase.ToSNAKE(flagS3Key)},
+			Value:    "plugins.json",
 			Required: true,
 		},
 	}
