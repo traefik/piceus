@@ -12,6 +12,10 @@ import (
 	"path"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -27,15 +31,53 @@ func (a *APIError) Error() string {
 
 // Client for the plugin service.
 type Client struct {
+	s3Client   *s3.Client
 	baseURL    string
 	httpClient *http.Client
+	plugins    map[string]Plugin
+	s3Bucket   string
+	s3Key      string
 }
 
 // New creates a plugin service client.
-func New(baseURL string) *Client {
+func New(ctx context.Context, baseURL, s3Bucket, s3Key string) *Client {
+	awscfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to load AWS SDK configuration")
+	}
+
+	s3Client := s3.NewFromConfig(awscfg)
+	s3Object, err := s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s3Bucket),
+		Key:    aws.String(s3Key),
+	})
+	if err != nil {
+		log.Error().Err(err).
+			Str("s3 bucket", s3Bucket).
+			Str("s3 key", s3Key).
+			Msg("cannot get s3 file")
+	}
+
+	defer func() { _ = s3Object.Body.Close() }()
+	plugins := make(map[string]Plugin)
+
+	decoder := json.NewDecoder(s3Object.Body)
+	if err := decoder.Decode(&plugins); err != nil {
+		log.Error().Err(err).
+			Str("s3 bucket", s3Bucket).
+			Str("s3 key", s3Key).
+			Msg("cannot decode s3 file")
+	}
 	return &Client{
-		baseURL:    baseURL,
-		httpClient: &http.Client{Timeout: 10 * time.Second, Transport: otelhttp.NewTransport(http.DefaultTransport)},
+		baseURL: baseURL,
+		httpClient: &http.Client{
+			Timeout:   10 * time.Second,
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		},
+		s3Bucket: s3Bucket,
+		s3Client: s3Client,
+		s3Key:    s3Key,
+		plugins:  plugins,
 	}
 }
 
@@ -72,6 +114,7 @@ func (c *Client) Create(ctx context.Context, p Plugin) error {
 		}
 	}
 
+	c.plugins[p.Name] = p
 	return nil
 }
 
@@ -115,6 +158,12 @@ func (c *Client) Update(ctx context.Context, p Plugin) error {
 			StatusCode: resp.StatusCode,
 		}
 	}
+
+	_, ok := c.plugins[p.Name]
+	if !ok {
+		return fmt.Errorf("failed to find plugins %q to update", p.Name)
+	}
+	c.plugins[p.Name] = p
 
 	return nil
 }
@@ -164,5 +213,34 @@ func (c *Client) GetByName(ctx context.Context, name string) (*Plugin, error) {
 		return nil, fmt.Errorf("failed to get plugin: %s", name)
 	}
 
-	return &plgs[0], nil
+	plugin, ok := c.plugins[name]
+	if !ok {
+		return nil, fmt.Errorf("failed to find plugins by name %q", name)
+	}
+
+	return &plugin, nil
+}
+
+// Flush writes plugin structure to s3.
+func (c *Client) Flush(ctx context.Context) error {
+	b := new(bytes.Buffer)
+	encoder := json.NewEncoder(b)
+	if err := encoder.Encode(c.plugins); err != nil {
+		log.Error().Err(err).Msg("cannot encode plugins")
+	}
+
+	// To check: nothing to close / shutdown / free ?
+	_, err := c.s3Client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(c.s3Bucket),
+		Key:    aws.String(c.s3Key),
+		Body:   b,
+	})
+	if err != nil {
+		log.Error().Err(err).
+			Str("s3 bucket", c.s3Bucket).
+			Str("s3 key", c.s3Key).
+			Msg("cannot put plugins data on s3")
+	}
+
+	return nil
 }

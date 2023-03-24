@@ -2,6 +2,7 @@ package sources
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -19,18 +20,16 @@ type GoProxy struct {
 }
 
 // Get gets sources.
-func (s *GoProxy) Get(_ context.Context, _ *github.Repository, gop string, mod module.Version) error {
+func (s *GoProxy) Get(_ context.Context, _ *github.Repository, gop string, mod module.Version) (string, error) {
 	// Creates temp archive storage
-
 	rootArchive, err := os.MkdirTemp("", "traefik-plugin-archives")
 	if err != nil {
-		return fmt.Errorf("failed to create temp archive storage: %w", err)
+		return "", fmt.Errorf("failed to create temp archive storage: %w", err)
 	}
 
 	defer func() { _ = os.RemoveAll(rootArchive) }()
 
 	// Gets code (archive)
-
 	archivePath, err := s.getArchive(mod, rootArchive)
 
 	defer func() {
@@ -40,18 +39,29 @@ func (s *GoProxy) Get(_ context.Context, _ *github.Repository, gop string, mod m
 	}()
 
 	if err != nil {
-		return fmt.Errorf("failed to get archive: %w", err)
+		return "", fmt.Errorf("failed to get archive: %w", err)
 	}
 
-	// Gets code (sources)
+	// Read archive for hash computing, needed by Traefik Proxy
+	file, err := os.ReadFile(archivePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read archive: %w", err)
+	}
+	hash := sha256.New()
+	_, err = hash.Write(file)
+	if err != nil {
+		return "", fmt.Errorf("failed to compute hash: %w", err)
+	}
+	sum := fmt.Sprintf("%x", hash.Sum(nil))
 
+	// Gets code (sources)
 	dest := filepath.Join(filepath.Join(gop, "src"), filepath.FromSlash(mod.Path))
 	err = os.MkdirAll(dest, 0o750)
 	if err != nil {
-		return fmt.Errorf("failed to create sources directory: %w", err)
+		return "", fmt.Errorf("failed to create sources directory: %w", err)
 	}
 
-	return zip.Unzip(dest, mod, archivePath)
+	return sum, zip.Unzip(dest, mod, archivePath)
 }
 
 func (s *GoProxy) getArchive(mod module.Version, rootArchive string) (string, error) {

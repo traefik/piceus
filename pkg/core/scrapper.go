@@ -310,7 +310,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	// Get sources
 
-	err = s.sources.Get(ctx, repository, gop, module.Version{Path: moduleName, Version: latestVersion})
+	_, err = s.sources.Get(ctx, repository, gop, module.Version{Path: moduleName, Version: latestVersion})
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get sources: %w", err)

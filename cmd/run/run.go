@@ -21,7 +21,7 @@ func run(ctx context.Context, cfg Config) error {
 		log.Error().Err(err).Msg("Unable to configure new exporter.")
 		return err
 	}
-	defer exporter.Flush()
+	defer func() { _ = exporter.Shutdown(ctx) }()
 
 	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
 	defer func() { _ = bsp.Shutdown(ctx) }()
@@ -29,7 +29,7 @@ func run(ctx context.Context, cfg Config) error {
 	ghClient := newGitHubClient(ctx, cfg.GithubToken)
 	gpClient := goproxy.NewClient("")
 
-	pgClient := plugin.New(cfg.PluginURL)
+	pgClient := plugin.New(ctx, cfg.PluginURL, cfg.S3Bucket, cfg.S3Key)
 
 	var srcs core.Sources
 	if _, ok := os.LookupEnv(core.PrivateModeEnv); ok {
@@ -40,7 +40,13 @@ func run(ctx context.Context, cfg Config) error {
 
 	scrapper := core.NewScrapper(ghClient, gpClient, pgClient, srcs)
 
-	return scrapper.Run(ctx)
+	err = scrapper.Run(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("Error when scraping")
+		return err
+	}
+
+	return pgClient.Flush(ctx)
 }
 
 func newGitHubClient(ctx context.Context, token string) *github.Client {

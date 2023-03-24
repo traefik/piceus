@@ -10,6 +10,8 @@ const (
 	flagLogLevel    = "log-level"
 	flagGitHubToken = "github-token"
 	flagPluginURL   = "plugin-url"
+	flagS3Bucket    = "s3-bucket"
+	flagS3Key       = "s3-key"
 )
 
 const (
@@ -54,9 +56,28 @@ func Command() *cli.Command {
 		},
 	}
 
+	cmd.Flags = append(cmd.Flags, s3Flags()...)
 	cmd.Flags = append(cmd.Flags, tracingFlags()...)
 
 	return cmd
+}
+
+func s3Flags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:     flagS3Bucket,
+			Usage:    "Bucket to use for storing data",
+			EnvVars:  []string{strcase.ToSNAKE(flagS3Bucket)},
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     flagS3Key,
+			Usage:    "Key of file within the S3 Bucket",
+			EnvVars:  []string{strcase.ToSNAKE(flagS3Key)},
+			Value:    "plugins.json",
+			Required: true,
+		},
+	}
 }
 
 func tracingFlags() []cli.Flag {

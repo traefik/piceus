@@ -28,7 +28,7 @@ func TestGHSources_Get(t *testing.T) {
 		},
 	}
 
-	err := sources.Get(ctx, repo, "./test", module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
+	_, err := sources.Get(ctx, repo, "./test", module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
 	require.NoError(t, err)
 }
 
