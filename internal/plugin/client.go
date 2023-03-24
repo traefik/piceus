@@ -218,7 +218,7 @@ func (c *Client) GetByName(ctx context.Context, name string) (*Plugin, error) {
 		return nil, fmt.Errorf("failed to find plugins by name %q", name)
 	}
 
-	return plugin, nil
+	return &plugin, nil
 }
 
 // Flush writes plugin structure to s3.
