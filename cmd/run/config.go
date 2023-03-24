@@ -14,6 +14,8 @@ type Tracing struct {
 type Config struct {
 	GithubToken string
 	PluginURL   string
+	S3Bucket    string
+	S3Key       string
 	Tracing     Tracing
 }
 
@@ -21,6 +23,8 @@ func buildConfig(cliCtx *cli.Context) Config {
 	return Config{
 		GithubToken: cliCtx.String(flagGitHubToken),
 		PluginURL:   cliCtx.String(flagPluginURL),
+		S3Bucket:    cliCtx.String(flagS3Bucket),
+		S3Key:       cliCtx.String(flagS3Key),
 		Tracing: Tracing{
 			Endpoint:    cliCtx.String(flagTracingEndpoint),
 			Username:    cliCtx.String(flagTracingUsername),

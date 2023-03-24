@@ -23,6 +23,7 @@ type mockPluginClient struct {
 	create    func(p plugin.Plugin) error
 	update    func(p plugin.Plugin) error
 	getByName func(string) (*plugin.Plugin, error)
+	flush     func(ctx context.Context) error
 }
 
 func (f *mockPluginClient) Create(_ context.Context, p plugin.Plugin) error {
@@ -48,6 +49,10 @@ func (f *mockPluginClient) GetByName(_ context.Context, name string) (*plugin.Pl
 		return f.getByName(name)
 	}
 	return nil, nil
+}
+
+func (f *mockPluginClient) Flush(ctx context.Context) error {
+	return f.flush(ctx)
 }
 
 func Test_loadManifestContent(t *testing.T) {
@@ -332,7 +337,7 @@ func TestScrapper_process(t *testing.T) {
 	client.Transport = otelhttp.NewTransport(client.Transport)
 
 	ghClient := github.NewClient(client)
-	pgClient := plugin.New("") // ignored for this test
+	pgClient := plugin.New(ctx, "", "", "") // ignored for this test
 	gpClient := goproxy.NewClient("")
 	srcs := &sources.GitHub{Client: ghClient}
 
@@ -357,7 +362,7 @@ func TestScrapper_process_all(t *testing.T) {
 	client.Transport = otelhttp.NewTransport(client.Transport)
 
 	ghClient := github.NewClient(client)
-	pgClient := plugin.New("") // ignored for this test
+	pgClient := plugin.New(ctx, "", "", "") // ignored for this test
 	gpClient := goproxy.NewClient("")
 	srcs := &sources.GitHub{Client: ghClient}
 
