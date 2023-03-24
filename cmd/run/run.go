@@ -21,7 +21,7 @@ func run(ctx context.Context, cfg Config) error {
 		log.Error().Err(err).Msg("Unable to configure new exporter.")
 		return err
 	}
-	defer exporter.Flush()
+	defer func() { _ = exporter.Shutdown(ctx) }()
 
 	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
 	defer func() { _ = bsp.Shutdown(ctx) }()
