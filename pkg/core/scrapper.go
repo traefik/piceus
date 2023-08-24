@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -523,11 +524,20 @@ func (s *Scrapper) getTags(ctx context.Context, repository *github.Repository) (
 		return nil, fmt.Errorf("failed to get versions: %w", err)
 	}
 
+	expSemver := regexp.MustCompile(`^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
+
 	var result []string
 	for _, tag := range tags {
-		if tag.GetName() != "" {
-			result = append(result, tag.GetName())
+		name := tag.GetName()
+		if name == "" {
+			continue
 		}
+
+		if !expSemver.MatchString(name) {
+			return nil, fmt.Errorf("invalid tag: %s (this tag must be removed, see https://semver.org)", name)
+		}
+
+		result = append(result, name)
 	}
 
 	return result, nil
