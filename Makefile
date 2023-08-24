@@ -34,7 +34,7 @@ build-linux-amd64:
 
 ## Build Multi archs Docker image
 multi-arch-image-%: build-linux-amd64 build-linux-arm64
-	docker buildx build $(DOCKER_BUILDX_ARGS) --progress=chain -t gcr.io/traefiklabs/$(BIN_NAME):$* --platform=$(DOCKER_BUILD_PLATFORMS) -f buildx.Dockerfile .
+	docker buildx build $(DOCKER_BUILDX_ARGS) -t gcr.io/traefiklabs/$(BIN_NAME):$* --platform=$(DOCKER_BUILD_PLATFORMS) -f buildx.Dockerfile .
 
 image:
 	docker build -t gcr.io/traefiklabs/piceus:$(VERSION) .
