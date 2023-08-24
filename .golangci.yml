@@ -24,11 +24,13 @@ linters-settings:
   gofumpt:
     extra-rules: true
   depguard:
-    list-type: blacklist
-    include-go-root: false
-    packages:
-      - github.com/sirupsen/logrus
-      - github.com/pkg/errors
+    rules:
+      main:
+        deny:
+          - pkg: "github.com/instana/testify"
+            desc: not allowed
+          - pkg: "github.com/pkg/errors"
+            desc: Should be replaced by standard lib errors package
   gocritic:
     enabled-tags:
       - diagnostic
@@ -45,6 +47,20 @@ linters-settings:
     excludes:
       - G304 # Potential file inclusion via variable
       - G307 # Deferring unsafe method "Close" on type "\*os.File"
+  tagalign:
+    align: false
+    sort: true
+    order:
+      - description
+      - json
+      - toml
+      - yaml
+      - yml
+      - label
+      - label-slice-as-struct
+      - file
+      - kv
+      - export
 
 linters:
   enable-all: true
