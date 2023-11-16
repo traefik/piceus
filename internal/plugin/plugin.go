@@ -8,6 +8,8 @@ type Plugin struct {
 	Name          string                 `json:"name,omitempty"`
 	RepoName      string                 `json:"repoName,omitempty"`
 	DisplayName   string                 `json:"displayName,omitempty"`
+	Runtime       string                 `json:"runtime,omitempty"`
+	WasmPath      string                 `json:"wasmPath,omitempty"`
 	Author        string                 `json:"author,omitempty"`
 	Type          string                 `json:"type,omitempty"`
 	Import        string                 `json:"import,omitempty"`
