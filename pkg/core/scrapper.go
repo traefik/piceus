@@ -359,7 +359,6 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Name:          moduleName,
 		DisplayName:   manifest.DisplayName,
 		Runtime:       manifest.Runtime,
-		WasmPath:      manifest.WasmPath,
 		Author:        repository.GetOwner().GetLogin(),
 		RepoName:      repository.GetName(),
 		Type:          manifest.Type,
@@ -519,10 +518,6 @@ func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 
 	if m.Runtime != "wasm" && m.Import == "" {
 		return Manifest{}, errors.New("missing import")
-	}
-
-	if m.Runtime == "wasm" && m.WasmPath == "" {
-		return Manifest{}, errors.New("missing wasmPath")
 	}
 
 	if m.DisplayName == "" {

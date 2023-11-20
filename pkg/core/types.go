@@ -16,7 +16,6 @@ type Sources interface {
 type Manifest struct {
 	DisplayName   string                 `json:"displayName,omitempty" toml:"displayName,omitempty" yaml:"displayName,omitempty"`
 	Runtime       string                 `json:"runtime,omitempty" toml:"runtime,omitempty" yaml:"runtime,omitempty"`
-	WasmPath      string                 `json:"wasmPath,omitempty" toml:"wasmPath,omitempty" yaml:"wasmPath,omitempty"`
 	Type          string                 `json:"type,omitempty" toml:"type,omitempty" yaml:"type,omitempty"`
 	Import        string                 `json:"import,omitempty" toml:"import,omitempty" yaml:"import,omitempty"`
 	BasePkg       string                 `json:"basePkg,omitempty" toml:"basePkg,omitempty" yaml:"basePkg,omitempty"`
