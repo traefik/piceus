@@ -1,9 +1,12 @@
 package core
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -299,28 +302,51 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		return nil, err
 	}
 
-	// Creates temp GOPATH
+	switch manifest.Runtime {
+	case "wasm":
+		// Creates temp GOPATH
+		var gop string
+		gop, err = os.MkdirTemp("", "traefik-plugin-gop")
+		if err != nil {
+			span.RecordError(err)
+			return nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
+		}
+		defer func() { _ = os.RemoveAll(gop) }()
 
-	gop, err := os.MkdirTemp("", "traefik-plugin-gop")
-	if err != nil {
-		span.RecordError(err)
-		return nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
-	}
+		release, _, errRelease := s.gh.Repositories.GetLatestRelease(ctx, repository.GetOwner().GetLogin(), repository.GetName())
+		if errRelease != nil {
+			span.RecordError(errRelease)
+			return nil, fmt.Errorf("failed to get latest release: %w", err)
+		}
 
-	defer func() { _ = os.RemoveAll(gop) }()
+		err = verifyRelease(release)
+		if err != nil {
+			return nil, fmt.Errorf("verify release assets failed: %w", err)
+		}
+	default:
+		// Creates temp GOPATH
+		var gop string
+		gop, err = os.MkdirTemp("", "traefik-plugin-gop")
+		if err != nil {
+			span.RecordError(err)
+			return nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
+		}
 
-	// Get sources
+		defer func() { _ = os.RemoveAll(gop) }()
 
-	err = s.sources.Get(ctx, repository, gop, module.Version{Path: moduleName, Version: latestVersion})
-	if err != nil {
-		span.RecordError(err)
-		return nil, fmt.Errorf("failed to get sources: %w", err)
-	}
+		// Get sources
 
-	// Check Yaegi interface
-	err = s.yaegiCheck(manifest, gop, moduleName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to run the plugin with Yaegi: %w", err)
+		err = s.sources.Get(ctx, repository, gop, module.Version{Path: moduleName, Version: latestVersion})
+		if err != nil {
+			span.RecordError(err)
+			return nil, fmt.Errorf("failed to get sources: %w", err)
+		}
+
+		// Check Yaegi interface
+		err = s.yaegiCheck(manifest, gop, moduleName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to run the plugin with Yaegi: %w", err)
+		}
 	}
 
 	snippets, err := createSnippets(repository, manifest)
@@ -332,6 +358,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	return &plugin.Plugin{
 		Name:          moduleName,
 		DisplayName:   manifest.DisplayName,
+		Runtime:       manifest.Runtime,
 		Author:        repository.GetOwner().GetLogin(),
 		RepoName:      repository.GetName(),
 		Type:          manifest.Type,
@@ -346,6 +373,65 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Stars:         repository.GetStargazersCount(),
 		Snippet:       snippets,
 	}, nil
+}
+
+func verifyRelease(release *github.RepositoryRelease) error {
+	found := false
+	for _, asset := range release.Assets {
+		if asset.GetName() == "traefik-plugin.zip" {
+			found = true
+			err := verifyZip(asset)
+			if err != nil {
+				return fmt.Errorf("failed to verify zip: %w", err)
+			}
+			break
+		}
+	}
+	if !found {
+		return errors.New("failed to find traefik-plugin.zip")
+	}
+
+	return nil
+}
+
+func verifyZip(asset *github.ReleaseAsset) error {
+	resp, err := http.Get(asset.GetBrowserDownloadURL())
+	if err != nil {
+		return fmt.Errorf("failed to download asset: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read asset body: %w", err)
+	}
+
+	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		return fmt.Errorf("failed to unzip traefik-plugin.zip: %w", err)
+	}
+
+	foundTraefikYml := false
+	foundWasm := false
+	for _, file := range reader.File {
+		if file.Name == "plugin.wasm" {
+			foundWasm = true
+		}
+		if file.Name == ".traefik.yml" {
+			foundTraefikYml = true
+		}
+
+		if foundTraefikYml && foundWasm {
+			break
+		}
+	}
+	if !foundWasm {
+		return errors.New("failed to find plugin.wasm")
+	}
+	if !foundTraefikYml {
+		return errors.New("failed to find .traefik.yml")
+	}
+	return nil
 }
 
 func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Repository, version string) (*modfile.File, error) {
@@ -430,7 +516,7 @@ func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 		return Manifest{}, fmt.Errorf("unsupported type: %s", m.Type)
 	}
 
-	if m.Import == "" {
+	if m.Runtime != "wasm" && m.Import == "" {
 		return Manifest{}, errors.New("missing import")
 	}
 
@@ -889,6 +975,10 @@ func checkModuleFile(mod *modfile.File, manifest Manifest) error {
 		}
 	}
 
+	if manifest.Runtime == "wasm" {
+		return nil
+	}
+
 	if !strings.HasPrefix(strings.ReplaceAll(manifest.Import, "-", "_"), strings.ReplaceAll(mod.Module.Mod.Path, "-", "_")) {
 		return fmt.Errorf("the import %q must be related to the module name %q", manifest.Import, mod.Module.Mod.Path)
 	}
@@ -901,6 +991,10 @@ func checkRepoName(repository *github.Repository, moduleName string, manifest Ma
 
 	if !strings.HasPrefix(moduleName, repoName) {
 		return fmt.Errorf("unsupported plugin: the module name (%s) doesn't contain the GitHub repository name (%s)", moduleName, repoName)
+	}
+
+	if manifest.Runtime == "wasm" {
+		return nil
 	}
 
 	if !strings.HasPrefix(manifest.Import, repoName) {
