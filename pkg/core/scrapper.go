@@ -897,7 +897,11 @@ func checkModuleFile(mod *modfile.File, manifest Manifest) error {
 		}
 	}
 
-	if manifest.Runtime != "wasm" && !strings.HasPrefix(strings.ReplaceAll(manifest.Import, "-", "_"), strings.ReplaceAll(mod.Module.Mod.Path, "-", "_")) {
+	if manifest.Runtime == "wasm" {
+		return nil
+	}
+
+	if !strings.HasPrefix(strings.ReplaceAll(manifest.Import, "-", "_"), strings.ReplaceAll(mod.Module.Mod.Path, "-", "_")) {
 		return fmt.Errorf("the import %q must be related to the module name %q", manifest.Import, mod.Module.Mod.Path)
 	}
 
@@ -911,7 +915,11 @@ func checkRepoName(repository *github.Repository, moduleName string, manifest Ma
 		return fmt.Errorf("unsupported plugin: the module name (%s) doesn't contain the GitHub repository name (%s)", moduleName, repoName)
 	}
 
-	if manifest.Runtime != "wasm" && !strings.HasPrefix(manifest.Import, repoName) {
+	if manifest.Runtime == "wasm" {
+		return nil
+	}
+	
+	if !strings.HasPrefix(manifest.Import, repoName) {
 		return fmt.Errorf("unsupported plugin: the import name (%s) doesn't contain the GitHub repository name (%s)", manifest.Import, repoName)
 	}
 
