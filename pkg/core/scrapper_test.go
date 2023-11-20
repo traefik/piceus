@@ -320,11 +320,11 @@ func Test_parseImageURL(t *testing.T) {
 }
 
 func TestScrapper_process(t *testing.T) {
-	t.Skip("for debug purpose only")
+	// t.Skip("for debug purpose only")
 
-	token := ""
-	owner := ""
-	repo := ""
+	token := "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"
+	owner := "juliens"
+	repo := "traefik-wasm-demo"
 
 	ctx := context.Background()
 

@@ -313,25 +313,15 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		}
 		defer func() { _ = os.RemoveAll(gop) }()
 
-		release, _, err := s.gh.Repositories.GetLatestRelease(ctx, repository.GetOwner().GetLogin(), repository.GetName())
-		if err != nil {
-			span.RecordError(err)
+		release, _, errRelease := s.gh.Repositories.GetLatestRelease(ctx, repository.GetOwner().GetLogin(), repository.GetName())
+		if errRelease != nil {
+			span.RecordError(errRelease)
 			return nil, fmt.Errorf("failed to get latest release: %w", err)
 		}
 
-		found := false
-		for _, asset := range release.Assets {
-			if asset.GetName() == "traefik-plugin.zip" {
-				found = true
-				err = verifyZip(asset)
-				if err != nil {
-					return nil, fmt.Errorf("failed to verify zip: %w", err)
-				}
-				break
-			}
-		}
-		if !found {
-			return nil, errors.New("failed to find traefik-plugin.zip in the release assets")
+		err = verifyRelease(release)
+		if err != nil {
+			return nil, fmt.Errorf("verify release assets failed: %w", err)
 		}
 	default:
 		// Creates temp GOPATH
@@ -386,13 +376,37 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	}, nil
 }
 
+func verifyRelease(release *github.RepositoryRelease) error {
+	found := false
+	for _, asset := range release.Assets {
+		if asset.GetName() == "traefik-plugin.zip" {
+			found = true
+			err := verifyZip(asset)
+			if err != nil {
+				return fmt.Errorf("failed to verify zip: %w", err)
+			}
+			break
+		}
+	}
+	if !found {
+		return errors.New("failed to find traefik-plugin.zip")
+	}
+
+	return nil
+}
+
 func verifyZip(asset *github.ReleaseAsset) error {
 	resp, err := http.Get(asset.GetBrowserDownloadURL())
 	if err != nil {
 		return fmt.Errorf("failed to download asset: %w", err)
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read asset body: %w", err)
+	}
+
 	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 	if err != nil {
 		return fmt.Errorf("failed to unzip traefik-plugin.zip: %w", err)
