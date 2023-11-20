@@ -3,13 +3,13 @@ module github.com/traefik/piceus
 go 1.21
 
 require (
-	github.com/ettle/strcase v0.1.1
-	github.com/google/go-cmp v0.5.9
+	github.com/ettle/strcase v0.2.0
+	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v45 v45.2.0
-	github.com/ldez/grignotin v0.4.2
+	github.com/ldez/grignotin v0.5.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pelletier/go-toml v1.9.5
-	github.com/rs/zerolog v1.30.0
+	github.com/rs/zerolog v1.31.0
 	github.com/stretchr/testify v1.8.4
 	github.com/traefik/paerser v0.2.0
 	github.com/traefik/yaegi v0.15.1
@@ -19,8 +19,8 @@ require (
 	go.opentelemetry.io/otel/exporters/jaeger v1.16.0
 	go.opentelemetry.io/otel/sdk v1.16.0
 	go.opentelemetry.io/otel/trace v1.16.0
-	golang.org/x/mod v0.12.0
-	golang.org/x/oauth2 v0.11.0
+	golang.org/x/mod v0.14.0
+	golang.org/x/oauth2 v0.14.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -40,9 +40,9 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
-	golang.org/x/crypto v0.12.0 // indirect
-	golang.org/x/net v0.14.0 // indirect
-	golang.org/x/sys v0.11.0 // indirect
+	golang.org/x/crypto v0.15.0 // indirect
+	golang.org/x/net v0.18.0 // indirect
+	golang.org/x/sys v0.14.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect

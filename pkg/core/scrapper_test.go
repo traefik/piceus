@@ -364,10 +364,10 @@ func TestScrapper_process_all(t *testing.T) {
 	scrapper := NewScrapper(ghClient, gpClient, pgClient, srcs)
 
 	reposWithExistingIssue, err := scrapper.searchReposWithExistingIssue(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	repositories, err := scrapper.search(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, repository := range repositories {
 		logger := log.With().Str("repo_name", repository.GetFullName()).Logger()
