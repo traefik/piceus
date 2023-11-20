@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -266,13 +267,13 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	// Gets module information
 
-	mod, err := s.getModuleInfo(ctx, repository, latestVersion)
+	mod, err := s.getModuleInfo(ctx, repository, latestVersion) // FIXME
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
 
-	moduleName := mod.Module.Mod.Path
+	moduleName := mod.Module.Mod.Path // FIXME
 
 	// skip already existing plugin
 
@@ -283,7 +284,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	// Checks module information
 
-	err = checkModuleFile(mod, manifest)
+	err = checkModuleFile(mod, manifest) // FIXME
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
@@ -304,25 +305,12 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	switch manifest.Runtime {
 	case "wasm":
-		// Creates temp GOPATH
-		var gop string
-		gop, err = os.MkdirTemp("", "traefik-plugin-gop")
+		err = s.verifyRelease(ctx, repository)
 		if err != nil {
 			span.RecordError(err)
-			return nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
-		}
-		defer func() { _ = os.RemoveAll(gop) }()
-
-		release, _, errRelease := s.gh.Repositories.GetLatestRelease(ctx, repository.GetOwner().GetLogin(), repository.GetName())
-		if errRelease != nil {
-			span.RecordError(errRelease)
-			return nil, fmt.Errorf("failed to get latest release: %w", err)
-		}
-
-		err = verifyRelease(release)
-		if err != nil {
 			return nil, fmt.Errorf("verify release assets failed: %w", err)
 		}
+
 	default:
 		// Creates temp GOPATH
 		var gop string
@@ -375,25 +363,27 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	}, nil
 }
 
-func verifyRelease(release *github.RepositoryRelease) error {
-	found := false
+func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Repository) error {
+	release, _, err := s.gh.Repositories.GetLatestRelease(ctx, repository.GetOwner().GetLogin(), repository.GetName())
+	if err != nil {
+		return fmt.Errorf("failed to get latest release: %w", err)
+	}
+
+	count := map[string]struct{}{}
 	for _, asset := range release.Assets {
-		if asset.GetName() == "traefik-plugin.zip" {
-			found = true
-			err := verifyZip(asset)
-			if err != nil {
-				return fmt.Errorf("failed to verify zip: %w", err)
-			}
-			break
+		if filepath.Ext(asset.GetName()) == ".zip" {
+			count[asset.GetName()] = struct{}{}
 		}
 	}
-	if !found {
-		return errors.New("failed to find traefik-plugin.zip")
+
+	if len(count) > 1 {
+		return fmt.Errorf("too many zip archive (%d)", len(count))
 	}
 
 	return nil
 }
 
+// FIXME
 func verifyZip(asset *github.ReleaseAsset) error {
 	resp, err := http.Get(asset.GetBrowserDownloadURL())
 	if err != nil {
