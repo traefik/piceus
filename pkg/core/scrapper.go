@@ -44,6 +44,8 @@ const (
 	wasmFile     = "plugin.wasm"
 )
 
+const wasmRuntime = "wasm"
+
 const (
 	typeMiddleware = "middleware"
 	typeProvider   = "provider"
@@ -307,7 +309,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	}
 
 	switch manifest.Runtime {
-	case "wasm":
+	case wasmRuntime:
 		err = s.verifyRelease(ctx, repository)
 		if err != nil {
 			span.RecordError(err)
@@ -523,7 +525,7 @@ func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 		return Manifest{}, fmt.Errorf("unsupported type: %s", m.Type)
 	}
 
-	if m.Runtime != "wasm" && m.Import == "" {
+	if m.Runtime != wasmRuntime && m.Import == "" {
 		return Manifest{}, errors.New("missing import")
 	}
 
@@ -982,7 +984,7 @@ func checkModuleFile(mod *modfile.File, manifest Manifest) error {
 		}
 	}
 
-	if manifest.Runtime == "wasm" {
+	if manifest.Runtime == wasmRuntime {
 		return nil
 	}
 
@@ -1000,7 +1002,7 @@ func checkRepoName(repository *github.Repository, moduleName string, manifest Ma
 		return fmt.Errorf("unsupported plugin: the module name (%s) doesn't contain the GitHub repository name (%s)", moduleName, repoName)
 	}
 
-	if manifest.Runtime == "wasm" {
+	if manifest.Runtime == wasmRuntime {
 		return nil
 	}
 
