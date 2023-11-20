@@ -1,13 +1,17 @@
 package core
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -35,7 +39,12 @@ import (
 // PrivateModeEnv "private" behavior (uses GitHub instead of GoProxy).
 const PrivateModeEnv = "PICEUS_PRIVATE_MODE"
 
-const manifestFile = ".traefik.yml"
+const (
+	manifestFile = ".traefik.yml"
+	wasmFile     = "plugin.wasm"
+)
+
+const wasmRuntime = "wasm"
 
 const (
 	typeMiddleware = "middleware"
@@ -261,66 +270,31 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		return nil, err
 	}
 
-	// Gets module information
+	var versions []string
+	var pluginName string
 
-	mod, err := s.getModuleInfo(ctx, repository, latestVersion)
-	if err != nil {
-		span.RecordError(err)
-		return nil, err
-	}
+	switch manifest.Runtime {
+	case wasmRuntime:
+		pluginName, versions, err = s.verifyWASMPlugin(ctx, repository, latestVersion)
+		if err != nil {
+			span.RecordError(err)
+			return nil, err
+		}
 
-	moduleName := mod.Module.Mod.Path
+		if pluginName == "" {
+			return nil, nil
+		}
 
-	// skip already existing plugin
+	default:
+		pluginName, versions, err = s.verifyYaegiPlugin(ctx, repository, latestVersion, manifest)
+		if err != nil {
+			span.RecordError(err)
+			return nil, err
+		}
 
-	prev, err := s.pg.GetByName(ctx, moduleName)
-	if err == nil && prev != nil && prev.LatestVersion == latestVersion && prev.Stars == repository.GetStargazersCount() {
-		return nil, nil
-	}
-
-	// Checks module information
-
-	err = checkModuleFile(mod, manifest)
-	if err != nil {
-		span.RecordError(err)
-		return nil, err
-	}
-
-	err = checkRepoName(repository, moduleName, manifest)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get versions
-
-	versions, err := s.getVersions(ctx, repository, moduleName)
-	if err != nil {
-		span.RecordError(err)
-		return nil, err
-	}
-
-	// Creates temp GOPATH
-
-	gop, err := os.MkdirTemp("", "traefik-plugin-gop")
-	if err != nil {
-		span.RecordError(err)
-		return nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
-	}
-
-	defer func() { _ = os.RemoveAll(gop) }()
-
-	// Get sources
-
-	err = s.sources.Get(ctx, repository, gop, module.Version{Path: moduleName, Version: latestVersion})
-	if err != nil {
-		span.RecordError(err)
-		return nil, fmt.Errorf("failed to get sources: %w", err)
-	}
-
-	// Check Yaegi interface
-	err = s.yaegiCheck(manifest, gop, moduleName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to run the plugin with Yaegi: %w", err)
+		if pluginName == "" {
+			return nil, nil
+		}
 	}
 
 	snippets, err := createSnippets(repository, manifest)
@@ -330,8 +304,9 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	}
 
 	return &plugin.Plugin{
-		Name:          moduleName,
+		Name:          pluginName,
 		DisplayName:   manifest.DisplayName,
+		Runtime:       manifest.Runtime,
 		Author:        repository.GetOwner().GetLogin(),
 		RepoName:      repository.GetName(),
 		Type:          manifest.Type,
@@ -346,6 +321,160 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Stars:         repository.GetStargazersCount(),
 		Snippet:       snippets,
 	}, nil
+}
+
+func (s *Scrapper) verifyWASMPlugin(ctx context.Context, repository *github.Repository, latestVersion string) (string, []string, error) {
+	pluginName := repository.GetFullName()
+
+	// skip already existing plugin
+	prev, err := s.pg.GetByName(ctx, pluginName)
+	if err == nil && prev != nil && prev.LatestVersion == latestVersion && prev.Stars == repository.GetStargazersCount() {
+		return "", nil, nil
+	}
+
+	// Get versions
+	versions, err := s.getVersions(ctx, repository, pluginName)
+	if err != nil {
+		return "", nil, err
+	}
+
+	err = s.verifyRelease(ctx, repository)
+	if err != nil {
+		return "", nil, fmt.Errorf("verify release assets failed: %w", err)
+	}
+
+	return pluginName, versions, nil
+}
+
+func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Repository, latestVersion string, manifest Manifest) (string, []string, error) {
+	// Gets module information
+	mod, err := s.getModuleInfo(ctx, repository, latestVersion)
+	if err != nil {
+		return "", nil, err
+	}
+
+	pluginName := mod.Module.Mod.Path
+
+	// skip already existing plugin
+	prev, err := s.pg.GetByName(ctx, pluginName)
+	if err == nil && prev != nil && prev.LatestVersion == latestVersion && prev.Stars == repository.GetStargazersCount() {
+		return "", nil, nil
+	}
+
+	// Checks module information
+	err = checkModuleFile(mod, manifest)
+	if err != nil {
+		return "", nil, err
+	}
+
+	err = checkRepoName(repository, pluginName, manifest)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Get versions
+	versions, err := s.getVersions(ctx, repository, pluginName)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Creates temp GOPATH
+	var gop string
+	gop, err = os.MkdirTemp("", "traefik-plugin-gop")
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
+	}
+
+	defer func() { _ = os.RemoveAll(gop) }()
+
+	// Get sources
+	err = s.sources.Get(ctx, repository, gop, module.Version{Path: pluginName, Version: latestVersion})
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get sources: %w", err)
+	}
+
+	// Check Yaegi interface
+	err = s.yaegiCheck(manifest, gop, pluginName)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to run the plugin with Yaegi: %w", err)
+	}
+
+	return pluginName, versions, nil
+}
+
+func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Repository) error {
+	release, _, err := s.gh.Repositories.GetLatestRelease(ctx, repository.GetOwner().GetLogin(), repository.GetName())
+	if err != nil {
+		return fmt.Errorf("failed to get latest release: %w", err)
+	}
+
+	assets := map[*github.ReleaseAsset]struct{}{}
+	for _, asset := range release.Assets {
+		if filepath.Ext(asset.GetName()) == ".zip" {
+			assets[asset] = struct{}{}
+		}
+	}
+
+	if len(assets) > 1 {
+		return fmt.Errorf("too many zip archive (%d)", len(assets))
+	}
+
+	if len(assets) == 0 {
+		return errors.New("zip archive not found")
+	}
+
+	for asset := range assets {
+		err = verifyZip(asset)
+		if err != nil {
+			return fmt.Errorf("invalid zip archive content: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func verifyZip(asset *github.ReleaseAsset) error {
+	resp, err := http.Get(asset.GetBrowserDownloadURL())
+	if err != nil {
+		return fmt.Errorf("failed to download asset: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read asset body: %w", err)
+	}
+
+	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		return fmt.Errorf("failed to unzip traefik-plugin.zip: %w", err)
+	}
+
+	foundManifest := false
+	foundWasm := false
+	for _, file := range reader.File {
+		if file.Name == wasmFile {
+			foundWasm = true
+		}
+
+		if file.Name == manifestFile {
+			foundManifest = true
+		}
+
+		if foundManifest && foundWasm {
+			break
+		}
+	}
+
+	if !foundWasm {
+		return errors.New("failed to find " + wasmFile)
+	}
+
+	if !foundManifest {
+		return errors.New("failed to find " + manifestFile)
+	}
+
+	return nil
 }
 
 func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Repository, version string) (*modfile.File, error) {
@@ -430,7 +559,7 @@ func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 		return Manifest{}, fmt.Errorf("unsupported type: %s", m.Type)
 	}
 
-	if m.Import == "" {
+	if m.Runtime != wasmRuntime && m.Import == "" {
 		return Manifest{}, errors.New("missing import")
 	}
 
@@ -889,6 +1018,10 @@ func checkModuleFile(mod *modfile.File, manifest Manifest) error {
 		}
 	}
 
+	if manifest.Runtime == wasmRuntime {
+		return nil
+	}
+
 	if !strings.HasPrefix(strings.ReplaceAll(manifest.Import, "-", "_"), strings.ReplaceAll(mod.Module.Mod.Path, "-", "_")) {
 		return fmt.Errorf("the import %q must be related to the module name %q", manifest.Import, mod.Module.Mod.Path)
 	}
@@ -901,6 +1034,10 @@ func checkRepoName(repository *github.Repository, moduleName string, manifest Ma
 
 	if !strings.HasPrefix(moduleName, repoName) {
 		return fmt.Errorf("unsupported plugin: the module name (%s) doesn't contain the GitHub repository name (%s)", moduleName, repoName)
+	}
+
+	if manifest.Runtime == wasmRuntime {
+		return nil
 	}
 
 	if !strings.HasPrefix(manifest.Import, repoName) {
