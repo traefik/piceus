@@ -39,7 +39,10 @@ import (
 // PrivateModeEnv "private" behavior (uses GitHub instead of GoProxy).
 const PrivateModeEnv = "PICEUS_PRIVATE_MODE"
 
-const manifestFile = ".traefik.yml"
+const (
+	manifestFile = ".traefik.yml"
+	wasmFile     = "plugin.wasm"
+)
 
 const (
 	typeMiddleware = "middleware"
@@ -401,26 +404,30 @@ func verifyZip(asset *github.ReleaseAsset) error {
 		return fmt.Errorf("failed to unzip traefik-plugin.zip: %w", err)
 	}
 
-	foundTraefikYml := false
+	foundManifest := false
 	foundWasm := false
 	for _, file := range reader.File {
-		if file.Name == "plugin.wasm" {
+		if file.Name == wasmFile {
 			foundWasm = true
 		}
-		if file.Name == ".traefik.yml" {
-			foundTraefikYml = true
+
+		if file.Name == manifestFile {
+			foundManifest = true
 		}
 
-		if foundTraefikYml && foundWasm {
+		if foundManifest && foundWasm {
 			break
 		}
 	}
+
 	if !foundWasm {
-		return errors.New("failed to find plugin.wasm")
+		return errors.New("failed to find " + wasmFile)
 	}
-	if !foundTraefikYml {
-		return errors.New("failed to find .traefik.yml")
+
+	if !foundManifest {
+		return errors.New("failed to find " + manifestFile)
 	}
+
 	return nil
 }
 
