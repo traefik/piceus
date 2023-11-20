@@ -372,21 +372,31 @@ func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Reposit
 		return fmt.Errorf("failed to get latest release: %w", err)
 	}
 
-	count := map[string]struct{}{}
+	assets := map[*github.ReleaseAsset]struct{}{}
 	for _, asset := range release.Assets {
 		if filepath.Ext(asset.GetName()) == ".zip" {
-			count[asset.GetName()] = struct{}{}
+			assets[asset] = struct{}{}
 		}
 	}
 
-	if len(count) > 1 {
-		return fmt.Errorf("too many zip archive (%d)", len(count))
+	if len(assets) > 1 {
+		return fmt.Errorf("too many zip archive (%d)", len(assets))
+	}
+
+	if len(assets) == 0 {
+		return errors.New("zip archive not found")
+	}
+
+	for asset, _ := range assets {
+		err := verifyZip(asset)
+		if err != nil {
+			return fmt.Errorf("invalid zip archive content: %w", err)
+		}
 	}
 
 	return nil
 }
 
-// FIXME
 func verifyZip(asset *github.ReleaseAsset) error {
 	resp, err := http.Get(asset.GetBrowserDownloadURL())
 	if err != nil {
