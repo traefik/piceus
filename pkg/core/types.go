@@ -15,6 +15,7 @@ type Sources interface {
 // Manifest The plugin manifest.
 type Manifest struct {
 	DisplayName   string                 `json:"displayName,omitempty" toml:"displayName,omitempty" yaml:"displayName,omitempty"`
+	Runtime       string                 `json:"runtime,omitempty" toml:"runtime,omitempty" yaml:"runtime,omitempty"`
 	Type          string                 `json:"type,omitempty" toml:"type,omitempty" yaml:"type,omitempty"`
 	Import        string                 `json:"import,omitempty" toml:"import,omitempty" yaml:"import,omitempty"`
 	BasePkg       string                 `json:"basePkg,omitempty" toml:"basePkg,omitempty" yaml:"basePkg,omitempty"`
