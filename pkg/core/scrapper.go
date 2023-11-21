@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +22,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/go-github/v45/github"
+	"github.com/http-wasm/http-wasm-host-go/handler"
+	wasm "github.com/http-wasm/http-wasm-host-go/handler/nethttp"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pelletier/go-toml"
@@ -275,7 +278,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 
 	switch manifest.Runtime {
 	case wasmRuntime:
-		pluginName, versions, err = s.verifyWASMPlugin(ctx, repository, latestVersion)
+		pluginName, versions, err = s.verifyWASMPlugin(ctx, repository, latestVersion, manifest)
 		if err != nil {
 			span.RecordError(err)
 			return nil, err
@@ -323,7 +326,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	}, nil
 }
 
-func (s *Scrapper) verifyWASMPlugin(ctx context.Context, repository *github.Repository, latestVersion string) (string, []string, error) {
+func (s *Scrapper) verifyWASMPlugin(ctx context.Context, repository *github.Repository, latestVersion string, manifest Manifest) (string, []string, error) {
 	pluginName := repository.GetFullName()
 
 	// skip already existing plugin
@@ -338,7 +341,7 @@ func (s *Scrapper) verifyWASMPlugin(ctx context.Context, repository *github.Repo
 		return "", nil, err
 	}
 
-	err = s.verifyRelease(ctx, repository)
+	err = s.verifyRelease(ctx, repository, manifest)
 	if err != nil {
 		return "", nil, fmt.Errorf("verify release assets failed: %w", err)
 	}
@@ -402,7 +405,7 @@ func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Rep
 	return pluginName, versions, nil
 }
 
-func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Repository) error {
+func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Repository, manifest Manifest) error {
 	release, _, err := s.gh.Repositories.GetLatestRelease(ctx, repository.GetOwner().GetLogin(), repository.GetName())
 	if err != nil {
 		return fmt.Errorf("failed to get latest release: %w", err)
@@ -424,7 +427,7 @@ func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Reposit
 	}
 
 	for asset := range assets {
-		err = verifyZip(asset)
+		err = verifyZip(asset, manifest)
 		if err != nil {
 			return fmt.Errorf("invalid zip archive content: %w", err)
 		}
@@ -433,7 +436,7 @@ func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Reposit
 	return nil
 }
 
-func verifyZip(asset *github.ReleaseAsset) error {
+func verifyZip(asset *github.ReleaseAsset, manifest Manifest) error {
 	resp, err := http.Get(asset.GetBrowserDownloadURL())
 	if err != nil {
 		return fmt.Errorf("failed to download asset: %w", err)
@@ -447,7 +450,7 @@ func verifyZip(asset *github.ReleaseAsset) error {
 
 	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 	if err != nil {
-		return fmt.Errorf("failed to unzip traefik-plugin.zip: %w", err)
+		return fmt.Errorf("failed to unzip archive: %w", err)
 	}
 
 	foundManifest := false
@@ -455,6 +458,10 @@ func verifyZip(asset *github.ReleaseAsset) error {
 	for _, file := range reader.File {
 		if file.Name == wasmFile {
 			foundWasm = true
+			err = checkWasmMiddleware(file, manifest)
+			if err != nil {
+				return fmt.Errorf("failed to check wasm middleware: %w", err)
+			}
 		}
 
 		if file.Name == manifestFile {
@@ -472,6 +479,29 @@ func verifyZip(asset *github.ReleaseAsset) error {
 
 	if !foundManifest {
 		return errors.New("failed to find " + manifestFile)
+	}
+
+	return nil
+}
+
+func checkWasmMiddleware(file *zip.File, manifest Manifest) error {
+	readCloser, err := file.Open()
+	if err != nil {
+		return fmt.Errorf("failed to open wasm file: %w", err)
+	}
+
+	pluginBytes, errRead := io.ReadAll(readCloser)
+	if errRead != nil {
+		return fmt.Errorf("failed to read wasm file: %w", errRead)
+	}
+
+	b, errMarshal := json.Marshal(manifest.TestData)
+	if errMarshal != nil {
+		return fmt.Errorf("failed to marshal test data: %w", errMarshal)
+	}
+	_, err = wasm.NewMiddleware(context.Background(), pluginBytes, handler.GuestConfig(b))
+	if err != nil {
+		return fmt.Errorf("failed to interpret plugin: %w", err)
 	}
 
 	return nil
