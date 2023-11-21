@@ -913,14 +913,11 @@ func verifyZip(asset *github.ReleaseAsset, manifest Manifest) error {
 	foundManifest := false
 	var wasmPluginFile *zip.File
 	for _, file := range reader.File {
-		if file.Name == wasmFile {
+		switch file.Name {
+		case wasmFile:
 			wasmPluginFile = file
-			continue
-		}
-
-		if file.Name == manifestFile {
+		case manifestFile:
 			foundManifest = true
-			continue
 		}
 
 		if foundManifest && wasmPluginFile != nil {
