@@ -354,8 +354,12 @@ func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 	}
 
 	switch m.Type {
-	case typeMiddleware, typeProvider:
-		// noop
+	case typeMiddleware:
+	// noop
+	case typeProvider:
+		if m.Runtime == wasmRuntime {
+			return Manifest{}, fmt.Errorf("unsupported type for WASM plugin: %s", m.Type)
+		}
 	default:
 		return Manifest{}, fmt.Errorf("unsupported type: %s", m.Type)
 	}
