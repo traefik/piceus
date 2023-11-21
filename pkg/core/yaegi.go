@@ -203,10 +203,6 @@ func checkRepoName(repository *github.Repository, moduleName string, manifest Ma
 		return fmt.Errorf("unsupported plugin: the module name (%s) doesn't contain the GitHub repository name (%s)", moduleName, repoName)
 	}
 
-	if manifest.Runtime == wasmRuntime {
-		return nil
-	}
-
 	if !strings.HasPrefix(manifest.Import, repoName) {
 		return fmt.Errorf("unsupported plugin: the import name (%s) doesn't contain the GitHub repository name (%s)", manifest.Import, repoName)
 	}
@@ -224,10 +220,6 @@ func checkModuleFile(mod *modfile.File, manifest Manifest) error {
 			strings.Contains(require.Mod.Path, "github.com/traefik/mesh") {
 			return fmt.Errorf("a plugin cannot have a dependence to: %s", require.Mod.Path)
 		}
-	}
-
-	if manifest.Runtime == wasmRuntime {
-		return nil
 	}
 
 	if !strings.HasPrefix(strings.ReplaceAll(manifest.Import, "-", "_"), strings.ReplaceAll(mod.Module.Mod.Path, "-", "_")) {
