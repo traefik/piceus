@@ -326,187 +326,6 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	}, nil
 }
 
-func (s *Scrapper) verifyWASMPlugin(ctx context.Context, repository *github.Repository, latestVersion string, manifest Manifest) (string, []string, error) {
-	pluginName := repository.GetFullName()
-
-	// skip already existing plugin
-	prev, err := s.pg.GetByName(ctx, pluginName)
-	if err == nil && prev != nil && prev.LatestVersion == latestVersion && prev.Stars == repository.GetStargazersCount() {
-		return "", nil, nil
-	}
-
-	// Get versions
-	versions, err := s.getVersions(ctx, repository, pluginName)
-	if err != nil {
-		return "", nil, err
-	}
-
-	err = s.verifyRelease(ctx, repository, manifest)
-	if err != nil {
-		return "", nil, fmt.Errorf("verify release assets failed: %w", err)
-	}
-
-	return pluginName, versions, nil
-}
-
-func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Repository, latestVersion string, manifest Manifest) (string, []string, error) {
-	// Gets module information
-	mod, err := s.getModuleInfo(ctx, repository, latestVersion)
-	if err != nil {
-		return "", nil, err
-	}
-
-	pluginName := mod.Module.Mod.Path
-
-	// skip already existing plugin
-	prev, err := s.pg.GetByName(ctx, pluginName)
-	if err == nil && prev != nil && prev.LatestVersion == latestVersion && prev.Stars == repository.GetStargazersCount() {
-		return "", nil, nil
-	}
-
-	// Checks module information
-	err = checkModuleFile(mod, manifest)
-	if err != nil {
-		return "", nil, err
-	}
-
-	err = checkRepoName(repository, pluginName, manifest)
-	if err != nil {
-		return "", nil, err
-	}
-
-	// Get versions
-	versions, err := s.getVersions(ctx, repository, pluginName)
-	if err != nil {
-		return "", nil, err
-	}
-
-	// Creates temp GOPATH
-	var gop string
-	gop, err = os.MkdirTemp("", "traefik-plugin-gop")
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
-	}
-
-	defer func() { _ = os.RemoveAll(gop) }()
-
-	// Get sources
-	err = s.sources.Get(ctx, repository, gop, module.Version{Path: pluginName, Version: latestVersion})
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to get sources: %w", err)
-	}
-
-	// Check Yaegi interface
-	err = s.yaegiCheck(manifest, gop, pluginName)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to run the plugin with Yaegi: %w", err)
-	}
-
-	return pluginName, versions, nil
-}
-
-func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Repository, manifest Manifest) error {
-	release, _, err := s.gh.Repositories.GetLatestRelease(ctx, repository.GetOwner().GetLogin(), repository.GetName())
-	if err != nil {
-		return fmt.Errorf("failed to get latest release: %w", err)
-	}
-
-	assets := map[*github.ReleaseAsset]struct{}{}
-	for _, asset := range release.Assets {
-		if filepath.Ext(asset.GetName()) == ".zip" {
-			assets[asset] = struct{}{}
-		}
-	}
-
-	if len(assets) > 1 {
-		return fmt.Errorf("too many zip archive (%d)", len(assets))
-	}
-
-	if len(assets) == 0 {
-		return errors.New("zip archive not found")
-	}
-
-	for asset := range assets {
-		err = verifyZip(asset, manifest)
-		if err != nil {
-			return fmt.Errorf("invalid zip archive content: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func verifyZip(asset *github.ReleaseAsset, manifest Manifest) error {
-	resp, err := http.Get(asset.GetBrowserDownloadURL())
-	if err != nil {
-		return fmt.Errorf("failed to download asset: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read asset body: %w", err)
-	}
-
-	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
-	if err != nil {
-		return fmt.Errorf("failed to unzip archive: %w", err)
-	}
-
-	foundManifest := false
-	foundWasm := false
-	for _, file := range reader.File {
-		if file.Name == wasmFile {
-			foundWasm = true
-			err = checkWasmMiddleware(file, manifest)
-			if err != nil {
-				return fmt.Errorf("failed to check wasm middleware: %w", err)
-			}
-		}
-
-		if file.Name == manifestFile {
-			foundManifest = true
-		}
-
-		if foundManifest && foundWasm {
-			break
-		}
-	}
-
-	if !foundWasm {
-		return errors.New("failed to find " + wasmFile)
-	}
-
-	if !foundManifest {
-		return errors.New("failed to find " + manifestFile)
-	}
-
-	return nil
-}
-
-func checkWasmMiddleware(file *zip.File, manifest Manifest) error {
-	readCloser, err := file.Open()
-	if err != nil {
-		return fmt.Errorf("failed to open wasm file: %w", err)
-	}
-
-	pluginBytes, errRead := io.ReadAll(readCloser)
-	if errRead != nil {
-		return fmt.Errorf("failed to read wasm file: %w", errRead)
-	}
-
-	b, errMarshal := json.Marshal(manifest.TestData)
-	if errMarshal != nil {
-		return fmt.Errorf("failed to marshal test data: %w", errMarshal)
-	}
-	_, err = wasm.NewMiddleware(context.Background(), pluginBytes, handler.GuestConfig(b))
-	if err != nil {
-		return fmt.Errorf("failed to interpret plugin: %w", err)
-	}
-
-	return nil
-}
-
 func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Repository, version string) (*modfile.File, error) {
 	ctx, span := s.tracer.Start(ctx, "scrapper_getModuleInfo")
 	defer span.End()
@@ -875,6 +694,62 @@ func parseImageURL(repository *github.Repository, latestVersion, imgPath string)
 	return pictURL.String()
 }
 
+func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Repository, latestVersion string, manifest Manifest) (string, []string, error) {
+	// Gets module information
+	mod, err := s.getModuleInfo(ctx, repository, latestVersion)
+	if err != nil {
+		return "", nil, err
+	}
+
+	pluginName := mod.Module.Mod.Path
+
+	// skip already existing plugin
+	prev, err := s.pg.GetByName(ctx, pluginName)
+	if err == nil && prev != nil && prev.LatestVersion == latestVersion && prev.Stars == repository.GetStargazersCount() {
+		return "", nil, nil
+	}
+
+	// Checks module information
+	err = checkModuleFile(mod, manifest)
+	if err != nil {
+		return "", nil, err
+	}
+
+	err = checkRepoName(repository, pluginName, manifest)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Get versions
+	versions, err := s.getVersions(ctx, repository, pluginName)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Creates temp GOPATH
+	var gop string
+	gop, err = os.MkdirTemp("", "traefik-plugin-gop")
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
+	}
+
+	defer func() { _ = os.RemoveAll(gop) }()
+
+	// Get sources
+	err = s.sources.Get(ctx, repository, gop, module.Version{Path: pluginName, Version: latestVersion})
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get sources: %w", err)
+	}
+
+	// Check Yaegi interface
+	err = s.yaegiCheck(manifest, gop, pluginName)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to run the plugin with Yaegi: %w", err)
+	}
+
+	return pluginName, versions, nil
+}
+
 func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) (err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -959,6 +834,145 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 		if !ok {
 			return fmt.Errorf("invalid handler type: %T", results[0].Interface())
 		}
+	}
+
+	return nil
+}
+
+func (s *Scrapper) verifyWASMPlugin(ctx context.Context, repository *github.Repository, latestVersion string, manifest Manifest) (string, []string, error) {
+	pluginName := repository.GetFullName()
+
+	// skip already existing plugin
+	prev, err := s.pg.GetByName(ctx, pluginName)
+	if err == nil && prev != nil && prev.LatestVersion == latestVersion && prev.Stars == repository.GetStargazersCount() {
+		return "", nil, nil
+	}
+
+	// Get versions
+	versions, err := s.getVersions(ctx, repository, pluginName)
+	if err != nil {
+		return "", nil, err
+	}
+
+	err = s.verifyRelease(ctx, repository, manifest)
+	if err != nil {
+		return "", nil, fmt.Errorf("verify release assets failed: %w", err)
+	}
+
+	return pluginName, versions, nil
+}
+
+func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Repository, manifest Manifest) error {
+	release, _, err := s.gh.Repositories.GetLatestRelease(ctx, repository.GetOwner().GetLogin(), repository.GetName())
+	if err != nil {
+		return fmt.Errorf("failed to get latest release: %w", err)
+	}
+
+	assets := map[*github.ReleaseAsset]struct{}{}
+	for _, asset := range release.Assets {
+		if filepath.Ext(asset.GetName()) == ".zip" {
+			assets[asset] = struct{}{}
+		}
+	}
+
+	if len(assets) > 1 {
+		return fmt.Errorf("too many zip archive (%d)", len(assets))
+	}
+
+	if len(assets) == 0 {
+		return errors.New("zip archive not found")
+	}
+
+	for asset := range assets {
+		err = verifyZip(asset, manifest)
+		if err != nil {
+			return fmt.Errorf("invalid zip archive content: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func verifyZip(asset *github.ReleaseAsset, manifest Manifest) error {
+	resp, err := http.Get(asset.GetBrowserDownloadURL())
+	if err != nil {
+		return fmt.Errorf("failed to download asset: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read asset body: %w", err)
+	}
+
+	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		return fmt.Errorf("failed to unzip archive: %w", err)
+	}
+
+	foundManifest := false
+	var wasmPluginFile *zip.File
+	for _, file := range reader.File {
+		if file.Name == wasmFile {
+			wasmPluginFile = file
+			continue
+		}
+
+		if file.Name == manifestFile {
+			foundManifest = true
+			continue
+		}
+
+		if foundManifest && wasmPluginFile != nil {
+			break
+		}
+	}
+
+	if wasmPluginFile == nil {
+		return errors.New("failed to find " + wasmFile)
+	}
+
+	if !foundManifest {
+		return errors.New("failed to find " + manifestFile)
+	}
+
+	switch manifest.Type {
+	case typeMiddleware:
+		err = checkWasmMiddleware(wasmPluginFile, manifest)
+		if err != nil {
+			return fmt.Errorf("failed to check wasm middleware: %w", err)
+		}
+
+	case typeProvider:
+		// TODO add support?
+		return nil
+
+	default:
+		return fmt.Errorf("unsupported type: %s", manifest.Type)
+	}
+
+	return nil
+}
+
+func checkWasmMiddleware(file *zip.File, manifest Manifest) error {
+	readCloser, err := file.Open()
+	if err != nil {
+		return fmt.Errorf("failed to open wasm file: %w", err)
+	}
+
+	pluginBytes, err := io.ReadAll(readCloser)
+	if err != nil {
+		return fmt.Errorf("failed to read wasm file: %w", err)
+	}
+
+	b, err := json.Marshal(manifest.TestData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal test data: %w", err)
+	}
+
+	_, err = wasm.NewMiddleware(context.Background(), pluginBytes, handler.GuestConfig(b))
+	if err != nil {
+		return fmt.Errorf("failed to interpret plugin: %w", err)
 	}
 
 	return nil
