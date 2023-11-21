@@ -8,27 +8,21 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/go-github/v45/github"
 	"github.com/ldez/grignotin/goproxy"
-	"github.com/mitchellh/mapstructure"
 	"github.com/pelletier/go-toml"
 	"github.com/rs/zerolog/log"
 	pfile "github.com/traefik/paerser/file"
 	"github.com/traefik/piceus/internal/plugin"
-	"github.com/traefik/yaegi/interp"
-	"github.com/traefik/yaegi/stdlib"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/module"
 	"gopkg.in/yaml.v3"
 )
 
@@ -36,6 +30,8 @@ import (
 const PrivateModeEnv = "PICEUS_PRIVATE_MODE"
 
 const manifestFile = ".traefik.yml"
+
+const wasmRuntime = "wasm"
 
 const (
 	typeMiddleware = "middleware"
@@ -167,7 +163,7 @@ func (s *Scrapper) isSkipped(ctx context.Context, reposWithExistingIssue []strin
 		return true
 	}
 
-	if contains(reposWithExistingIssue, repository.GetFullName()) {
+	if slices.Contains(reposWithExistingIssue, repository.GetFullName()) {
 		log.Ctx(ctx).Debug().Msg("The issue is still opened.")
 		return true
 	}
@@ -236,7 +232,7 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 }
 
 func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (*plugin.Plugin, error) {
-	ctx, span := s.tracer.Start(ctx, "scrapper_process_"+*repository.Name)
+	ctx, span := s.tracer.Start(ctx, "scrapper_process_"+repository.GetName())
 	defer span.End()
 
 	latestVersion, err := s.getLatestTag(ctx, repository)
@@ -261,66 +257,31 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		return nil, err
 	}
 
-	// Gets module information
+	var versions []string
+	var pluginName string
 
-	mod, err := s.getModuleInfo(ctx, repository, latestVersion)
-	if err != nil {
-		span.RecordError(err)
-		return nil, err
-	}
+	switch manifest.Runtime {
+	case wasmRuntime:
+		pluginName, versions, err = s.verifyWASMPlugin(ctx, repository, latestVersion, manifest)
+		if err != nil {
+			span.RecordError(err)
+			return nil, err
+		}
 
-	moduleName := mod.Module.Mod.Path
+		if pluginName == "" {
+			return nil, nil
+		}
 
-	// skip already existing plugin
+	default:
+		pluginName, versions, err = s.verifyYaegiPlugin(ctx, repository, latestVersion, manifest)
+		if err != nil {
+			span.RecordError(err)
+			return nil, err
+		}
 
-	prev, err := s.pg.GetByName(ctx, moduleName)
-	if err == nil && prev != nil && prev.LatestVersion == latestVersion && prev.Stars == repository.GetStargazersCount() {
-		return nil, nil
-	}
-
-	// Checks module information
-
-	err = checkModuleFile(mod, manifest)
-	if err != nil {
-		span.RecordError(err)
-		return nil, err
-	}
-
-	err = checkRepoName(repository, moduleName, manifest)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get versions
-
-	versions, err := s.getVersions(ctx, repository, moduleName)
-	if err != nil {
-		span.RecordError(err)
-		return nil, err
-	}
-
-	// Creates temp GOPATH
-
-	gop, err := os.MkdirTemp("", "traefik-plugin-gop")
-	if err != nil {
-		span.RecordError(err)
-		return nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
-	}
-
-	defer func() { _ = os.RemoveAll(gop) }()
-
-	// Get sources
-
-	err = s.sources.Get(ctx, repository, gop, module.Version{Path: moduleName, Version: latestVersion})
-	if err != nil {
-		span.RecordError(err)
-		return nil, fmt.Errorf("failed to get sources: %w", err)
-	}
-
-	// Check Yaegi interface
-	err = s.yaegiCheck(manifest, gop, moduleName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to run the plugin with Yaegi: %w", err)
+		if pluginName == "" {
+			return nil, nil
+		}
 	}
 
 	snippets, err := createSnippets(repository, manifest)
@@ -330,8 +291,9 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	}
 
 	return &plugin.Plugin{
-		Name:          moduleName,
+		Name:          pluginName,
 		DisplayName:   manifest.DisplayName,
+		Runtime:       manifest.Runtime,
 		Author:        repository.GetOwner().GetLogin(),
 		RepoName:      repository.GetName(),
 		Type:          manifest.Type,
@@ -346,38 +308,6 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Stars:         repository.GetStargazersCount(),
 		Snippet:       snippets,
 	}, nil
-}
-
-func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Repository, version string) (*modfile.File, error) {
-	ctx, span := s.tracer.Start(ctx, "scrapper_getModuleInfo")
-	defer span.End()
-
-	opts := &github.RepositoryContentGetOptions{Ref: version}
-
-	contents, _, resp, err := s.gh.Repositories.GetContents(ctx, repository.GetOwner().GetLogin(), repository.GetName(), "go.mod", opts)
-	if resp != nil && resp.StatusCode == 404 {
-		span.RecordError(fmt.Errorf("missing manifest: %w", err))
-		return nil, fmt.Errorf("missing manifest: %w", err)
-	}
-
-	if err != nil {
-		span.RecordError(err)
-		return nil, err
-	}
-
-	content, err := contents.GetContent()
-	if err != nil {
-		span.RecordError(err)
-		return nil, err
-	}
-
-	mod, err := modfile.Parse("go.mod", []byte(content), nil)
-	if err != nil {
-		span.RecordError(err)
-		return nil, err
-	}
-
-	return mod, nil
 }
 
 func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Repository, version string) (Manifest, error) {
@@ -430,7 +360,7 @@ func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 		return Manifest{}, fmt.Errorf("unsupported type: %s", m.Type)
 	}
 
-	if m.Import == "" {
+	if m.Runtime != wasmRuntime && m.Import == "" {
 		return Manifest{}, errors.New("missing import")
 	}
 
@@ -716,225 +646,6 @@ func parseImageURL(repository *github.Repository, latestVersion, imgPath string)
 	return pictURL.String()
 }
 
-func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) (err error) {
-	defer func() {
-		if rec := recover(); rec != nil {
-			err = fmt.Errorf("panic from yaegi: %v", rec)
-		}
-	}()
-
-	tearDown := dropSensitiveEnvVars()
-	defer tearDown()
-
-	switch manifest.Type {
-	case typeMiddleware:
-		_, skip := s.skipNewCall[moduleName]
-		return yaegiMiddlewareCheck(goPath, manifest, skip)
-
-	case typeProvider:
-		// TODO yaegi check for provider
-		return nil
-
-	default:
-		return fmt.Errorf("unsupported type: %s", manifest.Type)
-	}
-}
-
-func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error {
-	middlewareName := "test"
-
-	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
-
-	timeout := 10 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	i := interp.New(interp.Options{GoPath: goPath})
-	if err := i.Use(stdlib.Symbols); err != nil {
-		return fmt.Errorf("load of stdlib symbols: %w", err)
-	}
-
-	_, err := i.EvalWithContext(ctx, fmt.Sprintf(`import %q`, manifest.Import))
-	if err != nil {
-		return fmt.Errorf("the load of the plugin takes too much time(%s), or an error, inside the plugin, occurs during the load: %w", timeout, err)
-	}
-
-	basePkg := manifest.BasePkg
-	if basePkg == "" {
-		basePkg = path.Base(manifest.Import)
-		basePkg = strings.ReplaceAll(basePkg, "-", "_")
-	}
-
-	vConfig, err := i.EvalWithContext(ctx, basePkg+`.CreateConfig()`)
-	if err != nil {
-		return fmt.Errorf("failed to eval `CreateConfig` function: %w", err)
-	}
-
-	err = decodeConfig(vConfig, manifest.TestData)
-	if err != nil {
-		return err
-	}
-
-	fnNew, err := i.EvalWithContext(ctx, basePkg+`.New`)
-	if err != nil {
-		return fmt.Errorf("failed to eval `New` function: %w", err)
-	}
-
-	err = checkFunctionNewSignature(fnNew, vConfig)
-	if err != nil {
-		return fmt.Errorf("the signature of the function `New` is invalid: %w", err)
-	}
-
-	if !skipNew {
-		args := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(next), vConfig, reflect.ValueOf(middlewareName)}
-		results, err := safeFnCall(fnNew, args)
-		if err != nil {
-			return fmt.Errorf("the function `New` of %s produce a panic: %w", middlewareName, err)
-		}
-
-		if len(results) > 1 && results[1].Interface() != nil {
-			return fmt.Errorf("failed to create a new plugin instance: %w", results[1].Interface().(error))
-		}
-
-		_, ok := results[0].Interface().(http.Handler)
-		if !ok {
-			return fmt.Errorf("invalid handler type: %T", results[0].Interface())
-		}
-	}
-
-	return nil
-}
-
-func safeFnCall(fn reflect.Value, args []reflect.Value) (result []reflect.Value, errCall error) {
-	defer func() {
-		if err := recover(); err != nil {
-			errCall = fmt.Errorf("panic during the call of the function: %v", err)
-		}
-	}()
-
-	result = fn.Call(args)
-
-	return
-}
-
-func decodeConfig(vConfig reflect.Value, testData interface{}) error {
-	cfg := &mapstructure.DecoderConfig{
-		DecodeHook:       mapstructure.StringToSliceHookFunc(","),
-		WeaklyTypedInput: true,
-		Result:           vConfig.Interface(),
-	}
-
-	decoder, err := mapstructure.NewDecoder(cfg)
-	if err != nil {
-		return fmt.Errorf("plugin: failed to create configuration decoder: %w", err)
-	}
-
-	err = decoder.Decode(testData)
-	if err != nil {
-		return fmt.Errorf("plugin: failed to decode configuration: %w", err)
-	}
-
-	return nil
-}
-
-func checkFunctionNewSignature(fnNew, vConfig reflect.Value) error {
-	// check in types
-
-	if fnNew.Type().NumIn() != 4 {
-		return fmt.Errorf("invalid input arguments: got %d arguments expected %d", fnNew.Type().NumIn(), 4)
-	}
-
-	if !fnNew.Type().In(0).Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
-		return errors.New("invalid input arguments: the 1st argument must have the type context.Context")
-	}
-
-	if !fnNew.Type().In(1).Implements(reflect.TypeOf((*http.Handler)(nil)).Elem()) {
-		return errors.New("invalid input arguments: the 2nd argument must have the type http.Handler")
-	}
-
-	if !fnNew.Type().In(2).AssignableTo(vConfig.Type()) {
-		return errors.New("invalid input arguments: the 3rd argument must have the same type as the Config structure")
-	}
-
-	if fnNew.Type().In(3).Kind() != reflect.String {
-		return errors.New("invalid input arguments: the 4th argument must have the type string")
-	}
-
-	// check out types
-
-	if fnNew.Type().NumOut() != 2 {
-		return fmt.Errorf("invalid output arguments: got %d arguments expected %d", fnNew.Type().NumOut(), 2)
-	}
-
-	if !fnNew.Type().Out(0).Implements(reflect.TypeOf((*http.Handler)(nil)).Elem()) {
-		return errors.New("invalid input arguments: the 1st argument must have the type http.Handler")
-	}
-
-	if !fnNew.Type().Out(1).Implements(reflect.TypeOf((*error)(nil)).Elem()) {
-		return errors.New("invalid input arguments: the 2nd argument must have the type error")
-	}
-
-	return nil
-}
-
-func checkModuleFile(mod *modfile.File, manifest Manifest) error {
-	for _, require := range mod.Require {
-		if strings.Contains(require.Mod.Path, "github.com/containous/yaegi") ||
-			strings.Contains(require.Mod.Path, "github.com/containous/traefik") ||
-			strings.Contains(require.Mod.Path, "github.com/containous/maesh") ||
-			strings.Contains(require.Mod.Path, "github.com/traefik/yaegi") ||
-			strings.Contains(require.Mod.Path, "github.com/traefik/traefik") ||
-			strings.Contains(require.Mod.Path, "github.com/traefik/mesh") {
-			return fmt.Errorf("a plugin cannot have a dependence to: %s", require.Mod.Path)
-		}
-	}
-
-	if !strings.HasPrefix(strings.ReplaceAll(manifest.Import, "-", "_"), strings.ReplaceAll(mod.Module.Mod.Path, "-", "_")) {
-		return fmt.Errorf("the import %q must be related to the module name %q", manifest.Import, mod.Module.Mod.Path)
-	}
-
-	return nil
-}
-
-func checkRepoName(repository *github.Repository, moduleName string, manifest Manifest) error {
-	repoName := path.Join("github.com", repository.GetFullName())
-
-	if !strings.HasPrefix(moduleName, repoName) {
-		return fmt.Errorf("unsupported plugin: the module name (%s) doesn't contain the GitHub repository name (%s)", moduleName, repoName)
-	}
-
-	if !strings.HasPrefix(manifest.Import, repoName) {
-		return fmt.Errorf("unsupported plugin: the import name (%s) doesn't contain the GitHub repository name (%s)", manifest.Import, repoName)
-	}
-
-	return nil
-}
-
-func dropSensitiveEnvVars() func() {
-	bckEnviron := make(map[string]string)
-
-	for _, ev := range os.Environ() {
-		pair := strings.SplitN(ev, "=", 2)
-
-		key := strings.ToLower(pair[0])
-		if strings.Contains(key, "token") ||
-			strings.Contains(key, "password") ||
-			strings.Contains(key, "username") ||
-			strings.Contains(key, "_url") ||
-			strings.Contains(key, "_host") ||
-			strings.Contains(key, "_port") {
-			bckEnviron[pair[0]] = pair[1]
-			_ = os.Unsetenv(pair[0])
-		}
-	}
-
-	return func() {
-		for k, v := range bckEnviron {
-			_ = os.Setenv(k, v)
-		}
-	}
-}
-
 func safeIssueBody(err error) string {
 	msgBody := err.Error()
 
@@ -973,14 +684,4 @@ func safeIssueBody(err error) string {
 	msgBody = replacer.Replace(msgBody)
 
 	return fmt.Sprintf(issueContent, msgBody)
-}
-
-func contains(values []string, value string) bool {
-	for _, v := range values {
-		if v == value {
-			return true
-		}
-	}
-
-	return false
 }
