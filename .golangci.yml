@@ -9,7 +9,7 @@ linters-settings:
     disable:
       - fieldalignment
   gocyclo:
-    min-complexity: 13
+    min-complexity: 15
   goconst:
     min-len: 5
     min-occurrences: 3
@@ -43,6 +43,7 @@ linters-settings:
       - rangeValCopy
       - octalLiteral
       - paramTypeCombine # already handle by gofumpt.extra-rules
+      - unnamedResult
   gosec:
     excludes:
       - G304 # Potential file inclusion via variable
