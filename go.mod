@@ -51,6 +51,7 @@ require (
 )
 
 retract (
+	v1.13.0 // error during tag creation
 	v1.12.2 // error during tag creation
 	v1.10.2 // error during tag creation
 )
