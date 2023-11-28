@@ -89,21 +89,21 @@ func verifyZip(asset *github.ReleaseAsset, manifest Manifest) error {
 		return fmt.Errorf("failed to unzip archive: %w", err)
 	}
 
-	foundManifest := false
-	var wasmPluginFile *zip.File
-
-	wasmFileName := manifest.WasmPath
-	if wasmFileName == "" {
-		wasmFileName = wasmFile
+	wasmPath := manifest.WasmPath
+	if wasmPath == "" {
+		wasmPath = wasmFile
 	}
 
-	if !filepath.IsLocal(wasmFileName) {
+	if !filepath.IsLocal(wasmPath) {
 		return fmt.Errorf("wasmPath must be a local path")
 	}
 
+	foundManifest := false
+	var wasmPluginFile *zip.File
+
 	for _, file := range reader.File {
 		switch file.Name {
-		case wasmFileName:
+		case wasmPath:
 			wasmPluginFile = file
 		case manifestFile:
 			foundManifest = true
@@ -115,7 +115,7 @@ func verifyZip(asset *github.ReleaseAsset, manifest Manifest) error {
 	}
 
 	if wasmPluginFile == nil {
-		return errors.New("failed to find " + wasmFileName)
+		return errors.New("failed to find " + wasmPath)
 	}
 
 	if !foundManifest {
