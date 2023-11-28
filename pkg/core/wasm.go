@@ -89,13 +89,9 @@ func verifyZip(asset *github.ReleaseAsset, manifest Manifest) error {
 		return fmt.Errorf("failed to unzip archive: %w", err)
 	}
 
-	wasmPath := manifest.WasmPath
-	if wasmPath == "" {
-		wasmPath = wasmFile
-	}
-
-	if !filepath.IsLocal(wasmPath) {
-		return fmt.Errorf("wasmPath must be a local path")
+	wasmPath, err := getWasmPath(manifest)
+	if err != nil {
+		return err
 	}
 
 	var foundManifest bool
@@ -162,4 +158,17 @@ func checkWasmMiddleware(file *zip.File, manifest Manifest) error {
 	}
 
 	return nil
+}
+
+func getWasmPath(manifest Manifest) (string, error) {
+	wasmPath := manifest.WasmPath
+	if wasmPath == "" {
+		wasmPath = wasmFile
+	}
+
+	if !filepath.IsLocal(wasmPath) {
+		return "", fmt.Errorf("wasmPath must be a local path")
+	}
+
+	return wasmPath, nil
 }
