@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path"
 	"path/filepath"
 
 	"github.com/google/go-github/v45/github"
@@ -19,7 +20,7 @@ import (
 const wasmFile = "plugin.wasm"
 
 func (s *Scrapper) verifyWASMPlugin(ctx context.Context, repository *github.Repository, latestVersion string, manifest Manifest) (string, []string, error) {
-	pluginName := repository.GetFullName()
+	pluginName := path.Join("github.com", repository.GetFullName())
 
 	// skip already existing plugin
 	prev, err := s.pg.GetByName(ctx, pluginName)
