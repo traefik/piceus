@@ -81,6 +81,7 @@ linters:
     - rowserrcheck # not relevant (SQL)
     - execinquery # not relevant (SQL)
     - cyclop # duplicate of gocyclo
+    - ireturn
     - lll
     - dupl
     - gomnd
