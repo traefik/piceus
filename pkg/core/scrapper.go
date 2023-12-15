@@ -15,13 +15,12 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/pelletier/go-toml"
 	"github.com/rs/zerolog/log"
 	pfile "github.com/traefik/paerser/file"
 	"github.com/traefik/piceus/internal/plugin"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/yaml.v3"
 )
@@ -44,7 +43,7 @@ const (
 	searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
 
 	// searchQueryIssues the query used to search issues opened by the bot account.
-	searchQueryIssues = "is:open is:issue is:public author:traefiker"
+	searchQueryIssues = "is:open is:issue is:public author:mmatur"
 )
 
 const (
@@ -80,7 +79,7 @@ type Scrapper struct {
 }
 
 // NewScrapper creates a new Scrapper instance.
-func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, sources Sources) *Scrapper {
+func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, sources Sources, tracer trace.Tracer) *Scrapper {
 	return &Scrapper{
 		gh:      gh,
 		gp:      gp,
@@ -97,7 +96,7 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, s
 			"github.com/negasus/traefik-plugin-ip2location": {},
 		},
 
-		tracer: otel.Tracer("scrapper"),
+		tracer: tracer,
 	}
 }
 
