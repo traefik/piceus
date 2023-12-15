@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +16,7 @@ import (
 	"github.com/traefik/piceus/internal/plugin"
 	"github.com/traefik/piceus/pkg/sources"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/trace/noop"
 	"golang.org/x/oauth2"
 )
 
@@ -163,7 +164,7 @@ func TestScrapper_store(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
-			scrapper := NewScrapper(nil, nil, test.pgClient, nil)
+			scrapper := NewScrapper(nil, nil, test.pgClient, nil, noop.NewTracerProvider().Tracer("test"))
 
 			data := &plugin.Plugin{Name: "test"}
 			err := scrapper.store(context.Background(), data)
@@ -336,7 +337,7 @@ func TestScrapper_process(t *testing.T) {
 	gpClient := goproxy.NewClient("")
 	srcs := &sources.GitHub{Client: ghClient}
 
-	scrapper := NewScrapper(ghClient, gpClient, pgClient, srcs)
+	scrapper := NewScrapper(ghClient, gpClient, pgClient, srcs, noop.NewTracerProvider().Tracer("test"))
 
 	repository, _, err := ghClient.Repositories.Get(ctx, owner, repo)
 	require.NoError(t, err)
@@ -361,7 +362,7 @@ func TestScrapper_process_all(t *testing.T) {
 	gpClient := goproxy.NewClient("")
 	srcs := &sources.GitHub{Client: ghClient}
 
-	scrapper := NewScrapper(ghClient, gpClient, pgClient, srcs)
+	scrapper := NewScrapper(ghClient, gpClient, pgClient, srcs, noop.NewTracerProvider().Tracer("test"))
 
 	reposWithExistingIssue, err := scrapper.searchReposWithExistingIssue(ctx)
 	require.NoError(t, err)
