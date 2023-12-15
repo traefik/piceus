@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v57/github"
 	"golang.org/x/mod/module"
 )
 
@@ -63,7 +63,7 @@ func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop str
 func (s *GitHub) getArchive(ctx context.Context, repository *github.Repository, version, rootArchive string) (string, error) {
 	opts := &github.RepositoryContentGetOptions{Ref: version}
 
-	link, _, err := s.Client.Repositories.GetArchiveLink(ctx, repository.GetOwner().GetLogin(), repository.GetName(), github.Zipball, opts, true)
+	link, _, err := s.Client.Repositories.GetArchiveLink(ctx, repository.GetOwner().GetLogin(), repository.GetName(), github.Zipball, opts, 3)
 	if err != nil {
 		return "", fmt.Errorf("failed to get archive link: %w", err)
 	}
