@@ -15,13 +15,12 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/pelletier/go-toml"
 	"github.com/rs/zerolog/log"
 	pfile "github.com/traefik/paerser/file"
 	"github.com/traefik/piceus/internal/plugin"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/yaml.v3"
 )
@@ -44,7 +43,7 @@ const (
 	searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
 
 	// searchQueryIssues the query used to search issues opened by the bot account.
-	searchQueryIssues = "is:open is:issue is:public author:traefiker"
+	searchQueryIssues = "is:open is:issue is:public author:mmatur"
 )
 
 const (
@@ -80,7 +79,7 @@ type Scrapper struct {
 }
 
 // NewScrapper creates a new Scrapper instance.
-func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, sources Sources) *Scrapper {
+func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, sources Sources, tracer trace.Tracer) *Scrapper {
 	return &Scrapper{
 		gh:      gh,
 		gp:      gp,
@@ -96,7 +95,7 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, s
 			"github.com/negasus/traefik-plugin-ip2location": {},
 		},
 
-		tracer: otel.Tracer("scrapper"),
+		tracer: tracer,
 	}
 }
 
@@ -135,17 +134,19 @@ func (s *Scrapper) Run(ctx context.Context) error {
 				continue
 			}
 
-			issue := &github.IssueRequest{
-				Title: github.String(issueTitle),
-				Body:  github.String(safeIssueBody(err)),
-			}
-			_, _, err = s.gh.Issues.Create(ctx, repository.GetOwner().GetLogin(), repository.GetName(), issue)
-			if err != nil {
-				span.RecordError(err)
-				logger.Error().Err(err).Msg("Failed to create issue")
-			}
-
 			continue
+
+			//issue := &github.IssueRequest{
+			//	Title: github.String(issueTitle),
+			//	Body:  github.String(safeIssueBody(err)),
+			//}
+			//_, _, err = s.gh.Issues.Create(ctx, repository.GetOwner().GetLogin(), repository.GetName(), issue)
+			//if err != nil {
+			//	span.RecordError(err)
+			//	logger.Error().Err(err).Msg("Failed to create issue")
+			//}
+			//
+			//continue
 		}
 
 		err = s.store(logger.WithContext(ctx), data)
@@ -182,6 +183,7 @@ func (s *Scrapper) searchReposWithExistingIssue(ctx context.Context) ([]string, 
 	for {
 		issues, resp, err := s.gh.Search.Issues(ctx, searchQueryIssues, opts)
 		if err != nil {
+			fmt.Println("powpow")
 			return nil, err
 		}
 

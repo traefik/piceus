@@ -2,11 +2,11 @@ package run
 
 import (
 	"context"
+	"fmt"
 	"os"
 
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/ldez/grignotin/goproxy"
-	"github.com/rs/zerolog/log"
 	"github.com/traefik/piceus/internal/plugin"
 	"github.com/traefik/piceus/pkg/core"
 	"github.com/traefik/piceus/pkg/sources"
@@ -16,15 +16,11 @@ import (
 )
 
 func run(ctx context.Context, cfg Config) error {
-	exporter, err := tracer.NewJaegerExporter(cfg.Tracing.Endpoint, cfg.Tracing.Username, cfg.Tracing.Password)
+	tTracer, closer, err := tracer.NewTracer(ctx, cfg.Tracing)
 	if err != nil {
-		log.Error().Err(err).Msg("Unable to configure new exporter.")
-		return err
+		return fmt.Errorf("setup tracing provider: %w", err)
 	}
-	defer func() { _ = exporter.Shutdown(ctx) }()
-
-	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
-	defer func() { _ = bsp.Shutdown(ctx) }()
+	defer func() { _ = closer.Close() }()
 
 	ghClient := newGitHubClient(ctx, cfg.GithubToken)
 	gpClient := goproxy.NewClient("")
@@ -38,7 +34,7 @@ func run(ctx context.Context, cfg Config) error {
 		srcs = &sources.GoProxy{Client: gpClient}
 	}
 
-	scrapper := core.NewScrapper(ghClient, gpClient, pgClient, srcs)
+	scrapper := core.NewScrapper(ghClient, gpClient, pgClient, srcs, tTracer)
 
 	return scrapper.Run(ctx)
 }
