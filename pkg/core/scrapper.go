@@ -43,7 +43,7 @@ const (
 	searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
 
 	// searchQueryIssues the query used to search issues opened by the bot account.
-	searchQueryIssues = "is:open is:issue is:public author:mmatur"
+	searchQueryIssues = "is:open is:issue is:public author:traefiker"
 )
 
 const (
