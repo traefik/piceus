@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/ldez/grignotin/goproxy"
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/zip"

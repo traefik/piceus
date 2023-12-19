@@ -13,7 +13,8 @@ const (
 )
 
 const (
-	flagTracingEndpoint    = "tracing-endpoint"
+	flagTracingAddress     = "tracing-address"
+	flagTracingInsecure    = "tracing-insecure"
 	flagTracingUsername    = "tracing-username"
 	flagTracingPassword    = "tracing-password"
 	flagTracingProbability = "tracing-probability"
@@ -62,32 +63,34 @@ func Command() *cli.Command {
 func tracingFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
-			Name:     flagTracingEndpoint,
-			Usage:    "Endpoint to send traces",
-			EnvVars:  []string{strcase.ToSNAKE(flagTracingEndpoint)},
-			Value:    "https://collector.infra.traefiklabs.tech",
-			Required: false,
+			Name:    flagTracingAddress,
+			Usage:   "Address to send traces",
+			EnvVars: []string{strcase.ToSNAKE(flagTracingAddress)},
+			Value:   "jaeger.jaeger.svc.cluster.local:4318",
+		},
+		&cli.BoolFlag{
+			Name:    flagTracingInsecure,
+			Usage:   "use HTTP instead of HTTPS",
+			EnvVars: []string{strcase.ToSNAKE(flagTracingInsecure)},
+			Value:   true,
 		},
 		&cli.StringFlag{
-			Name:     flagTracingUsername,
-			Usage:    "Username to connect to Jaeger",
-			EnvVars:  []string{strcase.ToSNAKE(flagTracingUsername)},
-			Value:    "jaeger",
-			Required: false,
+			Name:    flagTracingUsername,
+			Usage:   "Username to connect to Jaeger",
+			EnvVars: []string{strcase.ToSNAKE(flagTracingUsername)},
+			Value:   "jaeger",
 		},
 		&cli.StringFlag{
-			Name:     flagTracingPassword,
-			Usage:    "Password to connect to Jaeger",
-			EnvVars:  []string{strcase.ToSNAKE(flagTracingPassword)},
-			Value:    "jaeger",
-			Required: false,
+			Name:    flagTracingPassword,
+			Usage:   "Password to connect to Jaeger",
+			EnvVars: []string{strcase.ToSNAKE(flagTracingPassword)},
+			Value:   "jaeger",
 		},
 		&cli.Float64Flag{
-			Name:     flagTracingProbability,
-			Usage:    "Probability to send traces.",
-			EnvVars:  []string{strcase.ToSNAKE(flagTracingProbability)},
-			Value:    0,
-			Required: false,
+			Name:    flagTracingProbability,
+			Usage:   "Probability to send traces",
+			EnvVars: []string{strcase.ToSNAKE(flagTracingProbability)},
+			Value:   0,
 		},
 	}
 }
