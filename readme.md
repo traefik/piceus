@@ -6,24 +6,24 @@
 
 ```
 NAME:
-   piceus run - Run Piceus
+   Piceus CLI run - Run Piceus
 
 USAGE:
-   piceus run [command options] [arguments...]
+   Piceus CLI run [command options] [arguments...]
 
 DESCRIPTION:
    Launch application piceus
 
 OPTIONS:
-   --log-level value              Log level (default: "info") [$LOG_LEVEL]
-   --github-token value           GitHub Token. [$GITHUB_TOKEN]
-   --services-access-token value  Services Access Token [$SERVICES_ACCESS_TOKEN]
-   --plugin-url value             Plugin Service URL [$PLUGIN_URL]
-   --tracing-endpoint value       Endpoint to send traces (default: "https://collector.infra.traefiklabs.tech") [$TRACING_ENDPOINT]
-   --tracing-username value       Username to connect to Jaeger (default: "jaeger") [$TRACING_USERNAME]
-   --tracing-password value       Password to connect to Jaeger (default: "jaeger") [$TRACING_PASSWORD]
-   --tracing-probability value    Probability to send traces. (default: 0) [$TRACING_PROBABILITY]
-   --help, -h                     show help (default: false)
+   --log-level value            Log level (default: "info") [$LOG_LEVEL]
+   --github-token value         GitHub Token. [$GITHUB_TOKEN]
+   --plugin-url value           Plugin Service URL [$PLUGIN_URL]
+   --tracing-address value      Address to send traces (default: "jaeger.jaeger.svc.cluster.local:4318") [$TRACING_ADDRESS]
+   --tracing-insecure           use HTTP instead of HTTPS (default: true) [$TRACING_INSECURE]
+   --tracing-username value     Username to connect to Jaeger (default: "jaeger") [$TRACING_USERNAME]
+   --tracing-password value     Password to connect to Jaeger (default: "jaeger") [$TRACING_PASSWORD]
+   --tracing-probability value  Probability to send traces (default: 0) [$TRACING_PROBABILITY]
+   --help, -h                   show help
 ```
 
 extra:

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v45/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/mitchellh/mapstructure"
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
