@@ -168,7 +168,7 @@ func getWasmPath(manifest Manifest) (string, error) {
 	}
 
 	if !filepath.IsLocal(wasmPath) {
-		return "", fmt.Errorf("wasmPath must be a local path")
+		return "", errors.New("wasmPath must be a local path")
 	}
 
 	return wasmPath, nil

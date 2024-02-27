@@ -134,7 +134,7 @@ func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Reposit
 func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error {
 	middlewareName := "test"
 
-	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
+	next := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {})
 
 	timeout := 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
