@@ -415,8 +415,9 @@ func (s *Scrapper) getLatestTag(ctx context.Context, repository *github.Reposito
 	}
 
 	if len(tags) == 0 {
-		span.RecordError(fmt.Errorf("missing tag/version"))
-		return "", errors.New("missing tag/version")
+		err := errors.New("missing tag/version")
+		span.RecordError(err)
+		return "", err
 	}
 
 	return tags[0], nil
@@ -441,8 +442,9 @@ func (s *Scrapper) getVersions(ctx context.Context, repository *github.Repositor
 	}
 
 	if len(versions) == 0 {
-		span.RecordError(fmt.Errorf("missing tag/version"))
-		return nil, errors.New("missing tags/versions")
+		err = errors.New("missing tag/version")
+		span.RecordError(err)
+		return nil, err
 	}
 
 	return versions, err
