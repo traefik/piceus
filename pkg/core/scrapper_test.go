@@ -144,7 +144,7 @@ func TestScrapper_store(t *testing.T) {
 		{
 			desc: "create",
 			pgClient: &mockPluginClient{
-				getByName: func(name string) (*plugin.Plugin, error) {
+				getByName: func(_ string) (*plugin.Plugin, error) {
 					return nil, &plugin.APIError{StatusCode: http.StatusNotFound, Message: "not found"}
 				},
 			},
@@ -152,7 +152,7 @@ func TestScrapper_store(t *testing.T) {
 		{
 			desc: "update",
 			pgClient: &mockPluginClient{
-				getByName: func(name string) (*plugin.Plugin, error) {
+				getByName: func(_ string) (*plugin.Plugin, error) {
 					return &plugin.Plugin{ID: "aaaa", Name: "test"}, nil
 				},
 			},
