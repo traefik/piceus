@@ -57,7 +57,7 @@ Cause:
 ` + "```" + `
 Traefik Plugin Analyzer will restart when you will close this issue.
 
-If you believe there is a problem with the Analyzer or this issue is the result of a false positive, please contact [us](https://community.traefik.io/).
+If you believe there is a problem with the Analyzer or this issue is the result of a false positive, please fill an issue on [piceus](https://github.com/traefik/piceus) repository.
 `
 )
 
