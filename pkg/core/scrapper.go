@@ -40,7 +40,7 @@ const (
 const (
 	// searchQuery the query used to search plugins on GitHub.
 	// https://help.github.com/en/github/searching-for-information-on-github/searching-for-repositories
-	searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
+	searchQuery = "topic:traefik-plugin archived:false is:public"
 
 	// searchQueryIssues the query used to search issues opened by the bot account.
 	searchQueryIssues = "is:open is:issue is:public author:traefiker"
