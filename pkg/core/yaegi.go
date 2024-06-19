@@ -106,7 +106,7 @@ func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Reposit
 	opts := &github.RepositoryContentGetOptions{Ref: version}
 
 	contents, _, resp, err := s.gh.Repositories.GetContents(ctx, repository.GetOwner().GetLogin(), repository.GetName(), "go.mod", opts)
-	if resp != nil && resp.StatusCode == 404 {
+	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		span.RecordError(fmt.Errorf("missing manifest: %w", err))
 		return nil, fmt.Errorf("missing manifest: %w", err)
 	}

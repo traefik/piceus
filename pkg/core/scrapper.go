@@ -317,7 +317,7 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 	opts := &github.RepositoryContentGetOptions{Ref: version}
 
 	contents, _, resp, err := s.gh.Repositories.GetContents(ctx, repository.GetOwner().GetLogin(), repository.GetName(), manifestFile, opts)
-	if resp != nil && resp.StatusCode == 404 {
+	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		span.RecordError(fmt.Errorf("missing manifest: %w", err))
 		return Manifest{}, fmt.Errorf("missing manifest: %w", err)
 	}

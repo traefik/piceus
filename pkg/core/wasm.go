@@ -15,6 +15,8 @@ import (
 	"github.com/google/go-github/v57/github"
 	"github.com/http-wasm/http-wasm-host-go/handler"
 	wasm "github.com/http-wasm/http-wasm-host-go/handler/nethttp"
+	"github.com/juliens/wasm-goexport/host"
+	"github.com/tetratelabs/wazero"
 )
 
 const wasmFile = "plugin.wasm"
@@ -153,7 +155,22 @@ func checkWasmMiddleware(file *zip.File, manifest Manifest) error {
 		return fmt.Errorf("failed to marshal test data: %w", err)
 	}
 
-	_, err = wasm.NewMiddleware(context.Background(), pluginBytes, handler.GuestConfig(b))
+	ctx := context.Background()
+	runtime := host.NewRuntime(wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig()))
+
+	mod, err := runtime.CompileModule(ctx, pluginBytes)
+	if err != nil {
+		return fmt.Errorf("failed to compile module: %w", err)
+	}
+
+	err = instantiate(ctx, runtime, mod)
+	if err != nil {
+		return fmt.Errorf("failed to instantiate module wasip1: %w", err)
+	}
+
+	_, err = wasm.NewMiddleware(context.Background(), pluginBytes, handler.GuestConfig(b), handler.Runtime(func(_ context.Context) (wazero.Runtime, error) {
+		return runtime, nil
+	}))
 	if err != nil {
 		return fmt.Errorf("failed to interpret plugin: %w", err)
 	}
