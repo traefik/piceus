@@ -63,7 +63,7 @@ func (c *Client) Create(ctx context.Context, p Plugin) error {
 
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode/100 != 2 {
+	if resp.StatusCode/100 != 2 { //nolint:usestdlibvars
 		body, _ := io.ReadAll(resp.Body)
 
 		return &APIError{
@@ -108,7 +108,7 @@ func (c *Client) Update(ctx context.Context, p Plugin) error {
 
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode/100 != 2 {
+	if resp.StatusCode/100 != 2 { //nolint:usestdlibvars
 		body, _ := io.ReadAll(resp.Body)
 		return &APIError{
 			Message:    string(body),
@@ -147,7 +147,7 @@ func (c *Client) GetByName(ctx context.Context, name string) (*Plugin, error) {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	if resp.StatusCode/100 != 2 {
+	if resp.StatusCode/100 != 2 { //nolint:usestdlibvars
 		return nil, &APIError{
 			Message:    string(body),
 			StatusCode: resp.StatusCode,
