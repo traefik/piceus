@@ -44,10 +44,16 @@ linters-settings:
       - octalLiteral
       - paramTypeCombine # already handle by gofumpt.extra-rules
       - unnamedResult
+      - whyNoLint # already handle by nonolint
+
   gosec:
     excludes:
       - G304 # Potential file inclusion via variable
       - G307 # Deferring unsafe method "Close" on type "\*os.File"
+  gomoddirectives:
+    replace-allow-list:
+      - github.com/http-wasm/http-wasm-host-go
+
   tagalign:
     align: false
     sort: true
@@ -101,6 +107,7 @@ linters:
     - nonamedreturns
     - forcetypeassert
     - prealloc
+    - mnd
 
 issues:
   exclude-use-default: false
