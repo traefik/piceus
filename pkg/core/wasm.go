@@ -163,12 +163,12 @@ func checkWasmMiddleware(file *zip.File, manifest Manifest) error {
 		return fmt.Errorf("failed to compile module: %w", err)
 	}
 
-	err = instantiate(ctx, runtime, mod)
+	ctx, err = instantiate(ctx, runtime, mod)
 	if err != nil {
 		return fmt.Errorf("failed to instantiate module wasip1: %w", err)
 	}
 
-	_, err = wasm.NewMiddleware(context.Background(), pluginBytes, handler.GuestConfig(b), handler.Runtime(func(_ context.Context) (wazero.Runtime, error) {
+	_, err = wasm.NewMiddleware(ctx, pluginBytes, handler.GuestConfig(b), handler.Runtime(func(_ context.Context) (wazero.Runtime, error) {
 		return runtime, nil
 	}))
 	if err != nil {

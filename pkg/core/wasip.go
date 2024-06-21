@@ -11,7 +11,7 @@ import (
 	wazero_wasip1 "github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
-func instantiate(ctx context.Context, runtime wazero.Runtime, mod wazero.CompiledModule) error {
+func instantiate(ctx context.Context, runtime wazero.Runtime, mod wazero.CompiledModule) (context.Context, error) {
 	extension := imports.DetectSocketsExtension(mod)
 	if extension != nil {
 		hostModule := wazergo_wasip1.NewHostModule(*extension)
@@ -22,20 +22,20 @@ func instantiate(ctx context.Context, runtime wazero.Runtime, mod wazero.Compile
 		var err error
 		ctx, sys, err = builder.Instantiate(ctx, runtime)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		_, err = wazergo.Instantiate(ctx, runtime, hostModule, wazergo_wasip1.WithWASI(sys))
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		return nil
+		return ctx, nil
 	}
 
 	_, err := wazero_wasip1.Instantiate(ctx, runtime)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return ctx, nil
 }
