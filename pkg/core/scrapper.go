@@ -88,9 +88,12 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, s
 
 		// TODO improve blacklist storage
 		blacklist: map[string]struct{}{
-			"containous/plugintestxxx":      {},
-			"esenac/traefik-custom-router":  {}, // The repo doesn't allow issues https://github.com/esenac/traefik-custom-router
-			"FinalCAD/TraefikGrpcWebPlugin": {}, // The repo crash piceus.
+			"containous/plugintestxxx":                {},
+			"esenac/traefik-custom-router":            {}, // Doesn't allow issues
+			"alexdelprete/traefik-oidc-relying-party": {},
+			"FinalCAD/TraefikGrpcWebPlugin":           {}, // Crash piceus.
+			"deas/teectl":                             {}, // Not a plugin
+			"GDGVIT/securum-exire":                    {}, // Not a plugin
 		},
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
