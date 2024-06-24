@@ -57,6 +57,11 @@ func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop str
 		return fmt.Errorf("failed to unzip archive: %w", err)
 	}
 
+	// Change current dir to have testData path working.
+	if err = os.Chdir(dest); err != nil {
+		return fmt.Errorf("could not chdir to %q: %w", dest, err)
+	}
+
 	return nil
 }
 
