@@ -273,6 +273,11 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		}
 
 	default:
+		if repository.GetLanguage() != "Go" {
+			log.Info().Str("repo_name", repository.GetFullName()).Msg("Yaegi plugin is not developed in Go")
+			return nil, nil
+		}
+
 		pluginName, versions, err = s.verifyYaegiPlugin(ctx, repository, latestVersion, manifest)
 		if err != nil {
 			span.RecordError(err)
