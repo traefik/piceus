@@ -22,4 +22,5 @@ type Plugin struct {
 	Stars         int                    `json:"stars,omitempty"`
 	Snippet       map[string]interface{} `json:"snippet,omitempty"`
 	CreatedAt     time.Time              `json:"createdAt"`
+	Hidden        bool                   `json:"hidden,omitempty"`
 }
