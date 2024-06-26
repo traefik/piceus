@@ -32,6 +32,8 @@ const manifestFile = ".traefik.yml"
 
 const wasmRuntime = "wasm"
 
+const hiddenTopic = "traefik-plugin-hidden"
+
 const (
 	typeMiddleware = "middleware"
 	typeProvider   = "provider"
@@ -311,6 +313,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Versions:      versions,
 		Stars:         repository.GetStargazersCount(),
 		Snippet:       snippets,
+		Hidden:        slices.Contains(repository.Topics, hiddenTopic),
 	}, nil
 }
 
