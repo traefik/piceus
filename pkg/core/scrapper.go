@@ -38,15 +38,6 @@ const (
 )
 
 const (
-	// searchQuery the query used to search plugins on GitHub.
-	// https://help.github.com/en/github/searching-for-information-on-github/searching-for-repositories
-	searchQuery = "topic:traefik-plugin language:Go archived:false is:public"
-
-	// searchQueryIssues the query used to search issues opened by the bot account.
-	searchQueryIssues = "is:open is:issue is:public author:traefiker"
-)
-
-const (
 	oldIssueTitle = "[Traefik Pilot] Traefik Plugin Analyzer has detected a problem." // must be keep forever.
 	issueTitle    = "[Traefik Plugin Catalog] Plugin Analyzer has detected a problem."
 	issueContent  = `The plugin was not imported into Traefik Plugin Catalog.
@@ -69,9 +60,13 @@ type pluginClient interface {
 
 // Scrapper the plugins scrapper.
 type Scrapper struct {
-	gh          *github.Client
-	gp          *goproxy.Client
-	pg          pluginClient
+	gh *github.Client
+	gp *goproxy.Client
+	pg pluginClient
+
+	searchQueries       []string
+	searchQueriesIssues []string
+
 	sources     Sources
 	blacklist   map[string]struct{}
 	skipNewCall map[string]struct{} // temporary approach
@@ -79,13 +74,16 @@ type Scrapper struct {
 }
 
 // NewScrapper creates a new Scrapper instance.
-func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, sources Sources, tracer trace.Tracer) *Scrapper {
+func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, sources Sources, tracer trace.Tracer, searchQueries, searchQueriesIssues []string) *Scrapper {
 	return &Scrapper{
-		gh:      gh,
-		gp:      gp,
-		pg:      pgClient,
-		sources: sources,
+		gh: gh,
+		gp: gp,
+		pg: pgClient,
 
+		searchQueries:       searchQueries,
+		searchQueriesIssues: searchQueriesIssues,
+
+		sources: sources,
 		// TODO improve blacklist storage
 		blacklist: map[string]struct{}{
 			"containous/plugintestxxx":                {},
@@ -98,7 +96,6 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, s
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
 		},
-
 		tracer: tracer,
 	}
 }
@@ -182,24 +179,26 @@ func (s *Scrapper) searchReposWithExistingIssue(ctx context.Context) ([]string, 
 
 	var all []string
 
-	for {
-		issues, resp, err := s.gh.Search.Issues(ctx, searchQueryIssues, opts)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, issue := range issues.Issues {
-			if issue.GetTitle() == oldIssueTitle || issue.GetTitle() == issueTitle {
-				// Creates the fullname of the repository.
-				all = append(all, strings.TrimPrefix(issue.GetRepositoryURL(), "https://api.github.com/repos/"))
+	for _, query := range s.searchQueriesIssues {
+		for {
+			issues, resp, err := s.gh.Search.Issues(ctx, query, opts)
+			if err != nil {
+				return nil, err
 			}
-		}
 
-		if resp.NextPage == 0 {
-			break
-		}
+			for _, issue := range issues.Issues {
+				if issue.GetTitle() == oldIssueTitle || issue.GetTitle() == issueTitle {
+					// Creates the fullname of the repository.
+					all = append(all, strings.TrimPrefix(issue.GetRepositoryURL(), "https://api.github.com/repos/"))
+				}
+			}
 
-		opts.Page = resp.NextPage
+			if resp.NextPage == 0 {
+				break
+			}
+
+			opts.Page = resp.NextPage
+		}
 	}
 
 	return all, nil
@@ -216,19 +215,21 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 
 	var all []*github.Repository
 
-	for {
-		repositories, resp, err := s.gh.Search.Repositories(ctx, searchQuery, opts)
-		if err != nil {
-			span.RecordError(err)
-			return nil, err
-		}
+	for _, query := range s.searchQueries {
+		for {
+			repositories, resp, err := s.gh.Search.Repositories(ctx, query, opts)
+			if err != nil {
+				span.RecordError(err)
+				return nil, err
+			}
 
-		all = append(all, repositories.Repositories...)
-		if resp.NextPage == 0 {
-			break
-		}
+			all = append(all, repositories.Repositories...)
+			if resp.NextPage == 0 {
+				break
+			}
 
-		opts.Page = resp.NextPage
+			opts.Page = resp.NextPage
+		}
 	}
 
 	return all, nil
