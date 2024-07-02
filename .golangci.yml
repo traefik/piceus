@@ -1,7 +1,5 @@
 run:
   timeout: 5m
-  skip-files: [ ]
-  skip-dirs: [ ]
 
 linters-settings:
   govet:
@@ -72,17 +70,6 @@ linters-settings:
 linters:
   enable-all: true
   disable:
-    - deadcode # deprecated
-    - exhaustivestruct # deprecated
-    - golint # deprecated
-    - ifshort # deprecated
-    - interfacer # deprecated
-    - maligned # deprecated
-    - nosnakecase # deprecated
-    - scopelint # deprecated
-    - scopelint # deprecated
-    - structcheck # deprecated
-    - varcheck # deprecated
     - sqlclosecheck # not relevant (SQL)
     - rowserrcheck # not relevant (SQL)
     - execinquery # not relevant (SQL)
@@ -94,7 +81,7 @@ linters:
     - tparallel
     - paralleltest
     - testpackage
-    - goerr113
+    - err113
     - wrapcheck
     - nlreturn
     - wsl
