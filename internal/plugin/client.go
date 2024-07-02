@@ -128,6 +128,7 @@ func (c *Client) GetByName(ctx context.Context, name string) (*Plugin, error) {
 
 	query := baseURL.Query()
 	query.Set("name", name)
+	query.Set("filterHidden", "false")
 	baseURL.RawQuery = query.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL.String(), nil)
