@@ -9,13 +9,19 @@ import (
 type Config struct {
 	GithubToken string
 	PluginURL   string
-	Tracing     tracer.Config
+
+	GithubSearchQueries       []string
+	GithubSearchQueriesIssues []string
+
+	Tracing tracer.Config
 }
 
 func buildConfig(cliCtx *cli.Context) Config {
 	return Config{
-		GithubToken: cliCtx.String(flagGitHubToken),
-		PluginURL:   cliCtx.String(flagPluginURL),
+		GithubToken:               cliCtx.String(flagGitHubToken),
+		PluginURL:                 cliCtx.String(flagPluginURL),
+		GithubSearchQueries:       cliCtx.StringSlice(flagGithubSearchQueries),
+		GithubSearchQueriesIssues: cliCtx.StringSlice(flagGithubSearchQueries),
 		Tracing: tracer.Config{
 			Address:     cliCtx.String(flagTracingAddress),
 			Insecure:    cliCtx.Bool(flagTracingInsecure),

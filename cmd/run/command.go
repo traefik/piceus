@@ -7,9 +7,11 @@ import (
 )
 
 const (
-	flagLogLevel    = "log-level"
-	flagGitHubToken = "github-token"
-	flagPluginURL   = "plugin-url"
+	flagLogLevel                  = "log-level"
+	flagGitHubToken               = "github-token"
+	flagPluginURL                 = "plugin-url"
+	flagGithubSearchQueries       = "github-search-queries"
+	flagGithubSearchQueriesIssues = "github-search-queries-issues"
 )
 
 const (
@@ -44,6 +46,22 @@ func Command() *cli.Command {
 				Usage:    "Plugin Service URL",
 				EnvVars:  []string{strcase.ToSNAKE(flagPluginURL)},
 				Required: true,
+			},
+			// flagGithubSearchQueries queries used to search plugins on GitHub.
+			// https://help.github.com/en/github/searching-for-information-on-github/searching-for-repositories
+			&cli.StringSliceFlag{
+				Name:    flagGithubSearchQueries,
+				Usage:   "Github search queries",
+				EnvVars: []string{strcase.ToSNAKE(flagGithubSearchQueries)},
+				Value:   cli.NewStringSlice("topic:traefik-plugin language:Go archived:false is:public"),
+			},
+			// flagGithubSearchQueryIssues queries used to search issues opened by the bot account.
+			// https://help.github.com/en/github/searching-for-information-on-github/searching-for-repositories
+			&cli.StringSliceFlag{
+				Name:    flagGithubSearchQueriesIssues,
+				Usage:   "Github queries used to search issues opened by the bot account",
+				EnvVars: []string{strcase.ToSNAKE(flagGithubSearchQueriesIssues)},
+				Value:   cli.NewStringSlice("is:open is:issue is:public author:traefiker"),
 			},
 		},
 		Action: func(cliCtx *cli.Context) error {
