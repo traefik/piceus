@@ -9,6 +9,7 @@ import (
 const (
 	flagLogLevel                  = "log-level"
 	flagGitHubToken               = "github-token"
+	flagDryRun                    = "dry-run"
 	flagPluginURL                 = "plugin-url"
 	flagGithubSearchQueries       = "github-search-queries"
 	flagGithubSearchQueriesIssues = "github-search-queries-issues"
@@ -40,6 +41,12 @@ func Command() *cli.Command {
 				Usage:    "GitHub Token.",
 				EnvVars:  []string{strcase.ToSNAKE(flagGitHubToken)},
 				Required: true,
+			},
+			&cli.BoolFlag{
+				Name:    flagDryRun,
+				Usage:   "Dry run mode.",
+				EnvVars: []string{strcase.ToSNAKE(flagDryRun)},
+				Value:   true,
 			},
 			&cli.StringFlag{
 				Name:     flagPluginURL,
