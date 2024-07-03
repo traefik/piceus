@@ -1,0 +1,48 @@
+[run]
+  timeout = "5m"
+  skip-files = []
+
+[linters-settings]
+
+  [linters-settings.govet]
+    check-shadowing = true
+
+  [linters-settings.gocyclo]
+    min-complexity = 14.0
+
+  [linters-settings.maligned]
+    suggest-new = true
+
+  [linters-settings.goconst]
+    min-len = 3.0
+    min-occurrences = 3.0
+
+  [linters-settings.misspell]
+    locale = "US"
+
+  [linters-settings.funlen]
+    lines = 60 # default 60
+    statements = 40 # default 40
+
+
+[linters]
+  enable-all = true
+  disable = [
+    "gomnd",
+    "bodyclose", # Too many false-positive and panics.
+    "wsl", # Too strict
+  ]
+
+[issues]
+  exclude-use-default = false
+  max-per-linter = 0
+  max-same-issues = 0
+  exclude = []
+
+  [[issues.exclude-rules]]
+    path = "(.+)_test.go"
+    linters = ["funlen"]
+
+  [[issues.exclude-rules]]
+    path = "metago/metago.go"
+    text = "cyclomatic complexity 15 of func `parseMetaGo` is high"

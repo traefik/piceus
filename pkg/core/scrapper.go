@@ -66,6 +66,8 @@ type Scrapper struct {
 	gp *goproxy.Client
 	pg pluginClient
 
+	dryRun bool
+
 	searchQueries       []string
 	searchQueriesIssues []string
 
@@ -76,11 +78,13 @@ type Scrapper struct {
 }
 
 // NewScrapper creates a new Scrapper instance.
-func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, sources Sources, tracer trace.Tracer, searchQueries, searchQueriesIssues []string) *Scrapper {
+func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, dryRun bool, sources Sources, tracer trace.Tracer, searchQueries, searchQueriesIssues []string) *Scrapper {
 	return &Scrapper{
 		gh: gh,
 		gp: gp,
 		pg: pgClient,
+
+		dryRun: dryRun,
 
 		searchQueries:       searchQueries,
 		searchQueriesIssues: searchQueriesIssues,
@@ -141,12 +145,25 @@ func (s *Scrapper) Run(ctx context.Context) error {
 				Title: github.String(issueTitle),
 				Body:  github.String(safeIssueBody(err)),
 			}
+
+			if s.dryRun {
+				logger.Info().Msg("Dry run, not creating the issue")
+				logger.Debug().Interface("issue", issue).Send()
+				continue
+			}
+
 			_, _, err = s.gh.Issues.Create(ctx, repository.GetOwner().GetLogin(), repository.GetName(), issue)
 			if err != nil {
 				span.RecordError(err)
 				logger.Error().Err(err).Msg("Failed to create issue")
 			}
 
+			continue
+		}
+
+		if s.dryRun {
+			logger.Info().Msg("Dry run, not storing the plugin")
+			logger.Debug().Interface("data", data).Send()
 			continue
 		}
 
