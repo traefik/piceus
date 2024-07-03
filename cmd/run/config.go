@@ -10,6 +10,8 @@ type Config struct {
 	GithubToken string
 	PluginURL   string
 
+	DryRun bool
+
 	GithubSearchQueries       []string
 	GithubSearchQueriesIssues []string
 
@@ -20,8 +22,9 @@ func buildConfig(cliCtx *cli.Context) Config {
 	return Config{
 		GithubToken:               cliCtx.String(flagGitHubToken),
 		PluginURL:                 cliCtx.String(flagPluginURL),
+		DryRun:                    cliCtx.Bool(flagDryRun),
 		GithubSearchQueries:       cliCtx.StringSlice(flagGithubSearchQueries),
-		GithubSearchQueriesIssues: cliCtx.StringSlice(flagGithubSearchQueries),
+		GithubSearchQueriesIssues: cliCtx.StringSlice(flagGithubSearchQueriesIssues),
 		Tracing: tracer.Config{
 			Address:     cliCtx.String(flagTracingAddress),
 			Insecure:    cliCtx.Bool(flagTracingInsecure),
