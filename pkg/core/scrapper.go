@@ -179,8 +179,9 @@ func (s *Scrapper) searchReposWithExistingIssue(ctx context.Context) ([]string, 
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
-	var all []string
+	log.Debug().Strs("searchQueriesIssues", s.searchQueriesIssues).Send()
 
+	var all []string
 	for _, query := range s.searchQueriesIssues {
 		for {
 			issues, resp, err := s.gh.Search.Issues(ctx, query, opts)
@@ -215,8 +216,9 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
-	var all []*github.Repository
+	log.Debug().Strs("searchQueries", s.searchQueries).Send()
 
+	var all []*github.Repository
 	for _, query := range s.searchQueries {
 		for {
 			repositories, resp, err := s.gh.Search.Repositories(ctx, query, opts)
