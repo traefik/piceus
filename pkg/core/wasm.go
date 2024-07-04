@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"path"
 	"path/filepath"
 
@@ -66,7 +65,7 @@ func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Reposit
 	}
 
 	for asset := range assets {
-		err = verifyZip(asset, manifest)
+		err = s.verifyZip(ctx, repository.GetOwner().GetLogin(), repository.GetName(), asset.GetID(), manifest)
 		if err != nil {
 			return fmt.Errorf("invalid zip archive content: %w", err)
 		}
@@ -75,14 +74,13 @@ func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Reposit
 	return nil
 }
 
-func verifyZip(asset *github.ReleaseAsset, manifest Manifest) error {
-	resp, err := http.Get(asset.GetBrowserDownloadURL())
+func (s *Scrapper) verifyZip(ctx context.Context, owner, repo string, assetID int64, manifest Manifest) error {
+	asset, _, err := s.gh.Repositories.DownloadReleaseAsset(ctx, owner, repo, assetID, s.gh.Client())
 	if err != nil {
 		return fmt.Errorf("failed to download asset: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(asset)
 	if err != nil {
 		return fmt.Errorf("failed to read asset body: %w", err)
 	}
