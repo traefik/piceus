@@ -177,23 +177,40 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 	}
 
 	if !skipNew {
+		return callNew(ctx, next, vConfig, middlewareName, fnNew)
+	}
+
+	return nil
+}
+
+func callNew(ctx context.Context, next http.HandlerFunc, vConfig reflect.Value, middlewareName string, fnNew reflect.Value) error {
+	errCh := make(chan error)
+
+	go func() {
 		args := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(next), vConfig, reflect.ValueOf(middlewareName)}
 		results, err := safeFnCall(fnNew, args)
 		if err != nil {
-			return fmt.Errorf("the function `New` of %s produce a panic: %w", middlewareName, err)
+			errCh <- fmt.Errorf("the function `New` of %s produce a panic: %w", middlewareName, err)
+			return
 		}
 
 		if len(results) > 1 && results[1].Interface() != nil {
-			return fmt.Errorf("failed to create a new plugin instance: %w", results[1].Interface().(error))
+			errCh <- fmt.Errorf("failed to create a new plugin instance: %w", results[1].Interface().(error))
 		}
 
 		_, ok := results[0].Interface().(http.Handler)
 		if !ok {
-			return fmt.Errorf("invalid handler type: %T", results[0].Interface())
+			errCh <- fmt.Errorf("invalid handler type: %T", results[0].Interface())
 		}
-	}
+		errCh <- nil
+	}()
 
-	return nil
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		return fmt.Errorf("the function `New` has failed: %w", ctx.Err())
+	}
 }
 
 func checkRepoName(repository *github.Repository, moduleName string, manifest Manifest) error {
