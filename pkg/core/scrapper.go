@@ -94,6 +94,7 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, d
 		blacklist: map[string]struct{}{
 			"containous/plugintestxxx":                {},
 			"esenac/traefik-custom-router":            {}, // Doesn't allow issues
+			"tmpim/tmpauth-traefik":                   {}, // Doesn't allow issues
 			"alexdelprete/traefik-oidc-relying-party": {},
 			"FinalCAD/TraefikGrpcWebPlugin":           {}, // Crash piceus.
 			"deas/teectl":                             {}, // Not a plugin
