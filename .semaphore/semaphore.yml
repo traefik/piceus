@@ -32,7 +32,7 @@ global_job_config:
       - export "SEMAPHORE_GIT_DIR=${GOPATH}/src/github.com/traefik/${SEMAPHORE_PROJECT_NAME}"
       - export "PATH=${GOPATH}/bin:${PATH}"
       - mkdir -vp "${SEMAPHORE_GIT_DIR}" "${GOPATH}/bin"
-      - export GOPROXY=https://goproxy.io,https://athens.traefiklabs.tech,direct
+      - export GOPROXY=https://proxy.golang.org,https://athens.traefiklabs.tech,direct
       - cat /home/semaphore/datas/traefiker-keyfile.json | docker login -u _json_key --password-stdin https://gcr.io
       - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "${GOPATH}/bin" v1.59.1
       - curl -sfL https://gist.githubusercontent.com/traefiker/6d7ac019c11d011e4f131bb2cca8900e/raw/goreleaser.sh | bash -s -- -b "${GOPATH}/bin"
