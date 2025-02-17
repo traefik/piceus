@@ -498,7 +498,7 @@ func (s *Scrapper) getTags(ctx context.Context, repository *github.Repository) (
 		}
 
 		if !expSemver.MatchString(name) {
-			return nil, fmt.Errorf("invalid tag: %s (this tag must be removed, see https://semver.org)", name)
+			return nil, fmt.Errorf("invalid tag: %s (this tag must be removed, see https://go.dev/doc/modules/version-numbers)", name)
 		}
 
 		result = append(result, name)
