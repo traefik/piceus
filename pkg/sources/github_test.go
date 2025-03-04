@@ -3,6 +3,7 @@ package sources
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-github/v57/github"
@@ -17,8 +18,13 @@ func TestGHSources_Get(t *testing.T) {
 	client := newGitHubClient(ctx, "")
 	sources := GitHub{Client: client}
 
+	// Require because the process modifies wd with chdir.
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
 	t.Cleanup(func() {
-		_ = os.RemoveAll("./test")
+		_ = os.Chdir(wd)
+		_ = os.RemoveAll(filepath.Join(wd, "test"))
 	})
 
 	repo := &github.Repository{
@@ -28,7 +34,7 @@ func TestGHSources_Get(t *testing.T) {
 		},
 	}
 
-	err := sources.Get(ctx, repo, "./test", module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
+	err = sources.Get(ctx, repo, "./test", module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
 	require.NoError(t, err)
 }
 
