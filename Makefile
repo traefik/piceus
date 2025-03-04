@@ -20,7 +20,7 @@ test: clean
 
 build: clean
 	@echo Version: $(VERSION) $(BUILD_DATE)
-	CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} go build -v -ldflags '-X "main.version=${VERSION}" -X "main.commit=${SHA}" -X "main.date=${BUILD_DATE}"' -o "./dist/${GOOS}/${GOARCH}/${BIN_NAME}"
+	CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags '-X "main.version=${VERSION}" -X "main.commit=${SHA}" -X "main.date=${BUILD_DATE}"' -o "./dist/${GOOS}/${GOARCH}/${BIN_NAME}"
 
 build-linux-arm64: export GOOS := linux
 build-linux-arm64: export GOARCH := arm64
