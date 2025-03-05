@@ -17,7 +17,7 @@ func TestGHSources_Get(t *testing.T) {
 	client := newGitHubClient(ctx, "")
 	sources := GitHub{Client: client}
 
-	// Require because the process modifies wd with chdir.
+	// Require because the tested function modifies the working directory with Chdir.
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 

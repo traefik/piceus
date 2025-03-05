@@ -14,7 +14,7 @@ func TestGPSources_Get(t *testing.T) {
 	gpClient := goproxy.NewClient("")
 	sources := GoProxy{Client: gpClient}
 
-	// Require because the process modifies wd with chdir.
+	// Require because the tested function modifies the working directory with Chdir.
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
