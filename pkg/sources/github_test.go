@@ -17,8 +17,12 @@ func TestGHSources_Get(t *testing.T) {
 	client := newGitHubClient(ctx, "")
 	sources := GitHub{Client: client}
 
+	// Require because the process modifies wd with chdir.
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
 	t.Cleanup(func() {
-		_ = os.RemoveAll("./test")
+		_ = os.Chdir(wd)
 	})
 
 	repo := &github.Repository{
@@ -28,7 +32,7 @@ func TestGHSources_Get(t *testing.T) {
 		},
 	}
 
-	err := sources.Get(ctx, repo, "./test", module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
+	err = sources.Get(ctx, repo, t.TempDir(), module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
 	require.NoError(t, err)
 }
 

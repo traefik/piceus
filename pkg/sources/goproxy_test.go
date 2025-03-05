@@ -14,10 +14,14 @@ func TestGPSources_Get(t *testing.T) {
 	gpClient := goproxy.NewClient("")
 	sources := GoProxy{Client: gpClient}
 
+	// Require because the process modifies wd with chdir.
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+
 	t.Cleanup(func() {
-		_ = os.RemoveAll("./test")
+		_ = os.Chdir(wd)
 	})
 
-	err := sources.Get(context.Background(), nil, "./test", module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
+	err = sources.Get(context.Background(), nil, t.TempDir(), module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
 	require.NoError(t, err)
 }
