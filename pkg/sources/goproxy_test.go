@@ -3,7 +3,6 @@ package sources
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/ldez/grignotin/goproxy"
@@ -21,9 +20,8 @@ func TestGPSources_Get(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = os.Chdir(wd)
-		_ = os.RemoveAll(filepath.Join(wd, "test"))
 	})
 
-	err = sources.Get(context.Background(), nil, "./test", module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
+	err = sources.Get(context.Background(), nil, t.TempDir(), module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
 	require.NoError(t, err)
 }
