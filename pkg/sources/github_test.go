@@ -3,7 +3,6 @@ package sources
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/google/go-github/v57/github"
@@ -24,7 +23,6 @@ func TestGHSources_Get(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = os.Chdir(wd)
-		_ = os.RemoveAll(filepath.Join(wd, "test"))
 	})
 
 	repo := &github.Repository{
@@ -34,7 +32,7 @@ func TestGHSources_Get(t *testing.T) {
 		},
 	}
 
-	err = sources.Get(ctx, repo, "./test", module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
+	err = sources.Get(ctx, repo, t.TempDir(), module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
 	require.NoError(t, err)
 }
 
