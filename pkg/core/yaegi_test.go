@@ -17,7 +17,6 @@ import (
 )
 
 func TestUnsafe(t *testing.T) {
-
 	testCases := []struct {
 		desc        string
 		rootDir     string
@@ -60,7 +59,7 @@ func TestUnsafe(t *testing.T) {
 
 			tmpdir := t.TempDir()
 			source := LocalSources{src: test.rootDir}
-			err = source.Get(nil, nil, tmpdir, module.Version{
+			err = source.Get(context.Background(), nil, tmpdir, module.Version{
 				Path: mod.Module.Mod.Path,
 			})
 
@@ -98,7 +97,7 @@ func (s *LocalSources) Get(_ context.Context, _ *github.Repository, gop string, 
 			return errors.New("unexpected directory")
 		}
 
-		new, err := os.Create(filepath.Join(dest, d.Name()))
+		newFile, err := os.Create(filepath.Join(dest, d.Name()))
 		if err != nil {
 			return fmt.Errorf("failed to create source file: %w", err)
 		}
@@ -108,12 +107,11 @@ func (s *LocalSources) Get(_ context.Context, _ *github.Repository, gop string, 
 			return fmt.Errorf("failed to open source file: %w", err)
 		}
 
-		_, err = io.Copy(new, orig)
+		_, err = io.Copy(newFile, orig)
 		if err != nil {
 			return fmt.Errorf("failed to copy source file: %w", err)
 		}
 	}
 
 	return nil
-
 }
