@@ -1,0 +1,7 @@
+displayName: Plugin With Unsafe
+type: middleware
+
+import: github.com/traefik/plugintestunsafe
+basePkg: unsafe
+
+summary: Simple example plugin with unsafe.
