@@ -17,7 +17,6 @@ import (
 )
 
 func TestUnsafe(t *testing.T) {
-
 	testCases := []struct {
 		desc        string
 		rootDir     string
@@ -60,7 +59,7 @@ func TestUnsafe(t *testing.T) {
 
 			tmpdir := t.TempDir()
 			source := LocalSources{src: test.rootDir}
-			err = source.Get(nil, nil, tmpdir, module.Version{
+			err = source.Get(context.Background(), nil, tmpdir, module.Version{
 				Path: mod.Module.Mod.Path,
 			})
 
@@ -115,5 +114,4 @@ func (s *LocalSources) Get(_ context.Context, _ *github.Repository, gop string, 
 	}
 
 	return nil
-
 }
