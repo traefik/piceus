@@ -1,4 +1,4 @@
-package unsafe
+package plugin
 
 import (
 	"context"
