@@ -23,4 +23,5 @@ type Plugin struct {
 	Snippet       map[string]interface{} `json:"snippet,omitempty"`
 	CreatedAt     time.Time              `json:"createdAt"`
 	Hidden        bool                   `json:"hidden,omitempty"`
+	UseUnsafe     bool                   `json:"useUnsafe,omitempty"`
 }
