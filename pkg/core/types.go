@@ -24,5 +24,6 @@ type Manifest struct {
 	Summary       string                 `json:"summary,omitempty" toml:"summary,omitempty" yaml:"summary,omitempty"`
 	IconPath      string                 `json:"iconPath,omitempty" toml:"iconPath,omitempty" yaml:"iconPath,omitempty"`
 	BannerPath    string                 `json:"bannerPath,omitempty" toml:"bannerPath,omitempty" yaml:"bannerPath,omitempty"`
+	UseUnsafe     bool                   `json:"useUnsafe,omitempty" toml:"useUnsafe,omitempty" yaml:"useUnsafe,omitempty"`
 	TestData      map[string]interface{} `json:"testData,omitempty" toml:"testData,omitempty" yaml:"testData,omitempty"`
 }
