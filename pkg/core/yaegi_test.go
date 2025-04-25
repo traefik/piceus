@@ -28,7 +28,7 @@ func TestUnsafe(t *testing.T) {
 			expectError: false,
 		},
 		{
-			desc:        "Simple plugin with unsafe  without manifest.unsafe should fail",
+			desc:        "Simple plugin with unsafe without manifest.unsafe should fail",
 			rootDir:     filepath.Join("fixtures", "wrongunsafe"),
 			expectError: true,
 		},
