@@ -334,6 +334,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Stars:         repository.GetStargazersCount(),
 		Snippet:       snippets,
 		Hidden:        slices.Contains(repository.Topics, hiddenTopic),
+		UseUnsafe:     manifest.UseUnsafe,
 	}, nil
 }
 
