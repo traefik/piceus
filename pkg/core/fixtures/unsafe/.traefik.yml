@@ -1,7 +1,7 @@
 displayName: Plugin Unsafe
 type: middleware
 
-import: github.com/traefik/plugintest
+import: github.com/traefik/plugintestunsafe
 basePkg: plugin
 
 summary: Simple example plugin with unsafe.

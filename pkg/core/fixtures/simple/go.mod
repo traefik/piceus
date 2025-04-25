@@ -1,3 +1,3 @@
-module github.com/traefik/plugintestunsafe
+module github.com/traefik/plugintestsimple
 
 go 1.24.1
