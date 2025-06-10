@@ -87,6 +87,10 @@ func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) (err
 
 	switch manifest.Type {
 	case typeMiddleware:
+		if manifest.UseUnsafe {
+			// Skip unsafe test
+			return nil
+		}
 		_, skip := s.skipNewCall[moduleName]
 		return yaegiMiddlewareCheck(goPath, manifest, skip)
 
