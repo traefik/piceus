@@ -335,6 +335,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		Stars:         repository.GetStargazersCount(),
 		Snippet:       snippets,
 		Hidden:        slices.Contains(repository.Topics, hiddenTopic),
+		UseUnsafe:     manifest.UseUnsafe,
 	}, nil
 }
 
@@ -498,7 +499,7 @@ func (s *Scrapper) getTags(ctx context.Context, repository *github.Repository) (
 		}
 
 		if !expSemver.MatchString(name) {
-			return nil, fmt.Errorf("invalid tag: %s (this tag must be removed, see https://semver.org)", name)
+			return nil, fmt.Errorf("invalid tag: %s (this tag must be removed, see https://go.dev/doc/modules/version-numbers)", name)
 		}
 
 		result = append(result, name)
