@@ -16,11 +16,11 @@ import (
 )
 
 func run(ctx context.Context, cfg Config) error {
-	tTracer, closer, err := tracer.NewTracer(ctx, cfg.Tracing)
+	traceProvider, err := tracer.NewOTLPProvider(ctx, cfg.Tracing)
 	if err != nil {
 		return fmt.Errorf("setup tracing provider: %w", err)
 	}
-	defer func() { _ = closer.Close() }()
+	defer func() { _ = traceProvider.Stop(ctx) }()
 
 	ghClient := newGitHubClient(ctx, cfg.GithubToken)
 	gpClient := goproxy.NewClient("")
@@ -34,7 +34,7 @@ func run(ctx context.Context, cfg Config) error {
 		srcs = &sources.GoProxy{Client: gpClient}
 	}
 
-	scrapper := core.NewScrapper(ghClient, gpClient, pgClient, cfg.DryRun, srcs, tTracer, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
+	scrapper := core.NewScrapper(ghClient, gpClient, pgClient, cfg.DryRun, srcs, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
 
 	return scrapper.Run(ctx)
 }
