@@ -12,15 +12,17 @@ import (
 	"github.com/traefik/piceus/pkg/sources"
 	"github.com/traefik/piceus/pkg/tracer"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"golang.org/x/oauth2"
 )
 
 func run(ctx context.Context, cfg Config) error {
-	traceProvider, err := tracer.NewOTLPProvider(ctx, cfg.Tracing)
+	stopTracer, err := setupTracing(ctx, cfg.Tracing)
 	if err != nil {
-		return fmt.Errorf("setup tracing provider: %w", err)
+		return fmt.Errorf("setting up tracing provider: %w", err)
 	}
-	defer func() { _ = traceProvider.Stop(ctx) }()
+	defer stopTracer()
 
 	ghClient := newGitHubClient(ctx, cfg.GithubToken)
 	gpClient := goproxy.NewClient("")
@@ -52,4 +54,19 @@ func newGitHubClient(ctx context.Context, token string) *github.Client {
 	client.Transport = otelhttp.NewTransport(client.Transport)
 
 	return github.NewClient(client)
+}
+
+func setupTracing(ctx context.Context, cfg tracer.Config) (func(), error) {
+	tracePropagator := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{})
+	traceProvider, err := tracer.NewOTLPProvider(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("setup tracing provider: %w", err)
+	}
+
+	otel.SetTracerProvider(traceProvider)
+	otel.SetTextMapPropagator(tracePropagator)
+
+	return func() {
+		_ = traceProvider.Stop(ctx)
+	}, nil
 }

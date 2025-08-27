@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/embedded"
 )
@@ -109,6 +109,9 @@ func (p *OTLPProvider) Tracer(name string, opts ...trace.TracerOption) trace.Tra
 
 // Stop stops the provider once all traces have been uploaded.
 func (p *OTLPProvider) Stop(ctx context.Context) error {
+	if err := p.provider.ForceFlush(ctx); err != nil {
+		return err
+	}
 	if err := p.exporter.Shutdown(ctx); err != nil {
 		return err
 	}
