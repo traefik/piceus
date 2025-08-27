@@ -12,15 +12,17 @@ import (
 	"github.com/traefik/piceus/pkg/sources"
 	"github.com/traefik/piceus/pkg/tracer"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"golang.org/x/oauth2"
 )
 
 func run(ctx context.Context, cfg Config) error {
-	tTracer, closer, err := tracer.NewTracer(ctx, cfg.Tracing)
+	stopTracer, err := setupTracing(ctx, cfg.Tracing)
 	if err != nil {
-		return fmt.Errorf("setup tracing provider: %w", err)
+		return fmt.Errorf("setting up tracing provider: %w", err)
 	}
-	defer func() { _ = closer.Close() }()
+	defer stopTracer()
 
 	ghClient := newGitHubClient(ctx, cfg.GithubToken)
 	gpClient := goproxy.NewClient("")
@@ -34,7 +36,7 @@ func run(ctx context.Context, cfg Config) error {
 		srcs = &sources.GoProxy{Client: gpClient}
 	}
 
-	scrapper := core.NewScrapper(ghClient, gpClient, pgClient, cfg.DryRun, srcs, tTracer, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
+	scrapper := core.NewScrapper(ghClient, gpClient, pgClient, cfg.DryRun, srcs, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
 
 	return scrapper.Run(ctx)
 }
@@ -52,4 +54,19 @@ func newGitHubClient(ctx context.Context, token string) *github.Client {
 	client.Transport = otelhttp.NewTransport(client.Transport)
 
 	return github.NewClient(client)
+}
+
+func setupTracing(ctx context.Context, cfg tracer.Config) (func(), error) {
+	tracePropagator := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{})
+	traceProvider, err := tracer.NewOTLPProvider(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("setup tracing provider: %w", err)
+	}
+
+	otel.SetTracerProvider(traceProvider)
+	otel.SetTextMapPropagator(tracePropagator)
+
+	return func() {
+		_ = traceProvider.Stop(ctx)
+	}, nil
 }

@@ -13,9 +13,7 @@ const (
 	flagPluginURL                 = "plugin-url"
 	flagGithubSearchQueries       = "github-search-queries"
 	flagGithubSearchQueriesIssues = "github-search-queries-issues"
-)
 
-const (
 	flagTracingAddress     = "tracing-address"
 	flagTracingInsecure    = "tracing-insecure"
 	flagTracingUsername    = "tracing-username"
@@ -80,12 +78,12 @@ func Command() *cli.Command {
 		},
 	}
 
-	cmd.Flags = append(cmd.Flags, tracingFlags()...)
+	cmd.Flags = append(cmd.Flags, getTracingFlags()...)
 
 	return cmd
 }
 
-func tracingFlags() []cli.Flag {
+func getTracingFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
 			Name:    flagTracingAddress,
