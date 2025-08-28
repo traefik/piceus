@@ -14,6 +14,11 @@ const (
 	flagGithubSearchQueries       = "github-search-queries"
 	flagGithubSearchQueriesIssues = "github-search-queries-issues"
 
+	flagMetricsAddress  = "metrics-address"
+	flagMetricsInsecure = "metrics-insecure"
+	flagMetricsUsername = "metrics-username"
+	flagMetricsPassword = "metrics-password"
+
 	flagTracingAddress     = "tracing-address"
 	flagTracingInsecure    = "tracing-insecure"
 	flagTracingUsername    = "tracing-username"
@@ -78,9 +83,39 @@ func Command() *cli.Command {
 		},
 	}
 
+	cmd.Flags = append(cmd.Flags, getMetricsFlags()...)
 	cmd.Flags = append(cmd.Flags, getTracingFlags()...)
 
 	return cmd
+}
+
+func getMetricsFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:    flagMetricsAddress,
+			Usage:   "Address to send metrics",
+			EnvVars: []string{strcase.ToSNAKE(flagMetricsAddress)},
+			Value:   "otel-collector.observability.svc.cluster.local:4318",
+		},
+		&cli.BoolFlag{
+			Name:    flagMetricsInsecure,
+			Usage:   "use HTTP instead of HTTPS",
+			EnvVars: []string{strcase.ToSNAKE(flagMetricsInsecure)},
+			Value:   true,
+		},
+		&cli.StringFlag{
+			Name:    flagMetricsUsername,
+			Usage:   "Username to connect to OTEL",
+			EnvVars: []string{strcase.ToSNAKE(flagMetricsUsername)},
+			Value:   "prometheus",
+		},
+		&cli.StringFlag{
+			Name:    flagMetricsPassword,
+			Usage:   "Password to connect to OTEL",
+			EnvVars: []string{strcase.ToSNAKE(flagMetricsPassword)},
+			Value:   "prometheus",
+		},
+	}
 }
 
 func getTracingFlags() []cli.Flag {
