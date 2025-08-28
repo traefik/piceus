@@ -21,7 +21,8 @@ import (
 	"github.com/rs/zerolog/log"
 	pfile "github.com/traefik/paerser/file"
 	"github.com/traefik/piceus/internal/plugin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"gopkg.in/yaml.v3"
 )
 
@@ -74,11 +75,11 @@ type Scrapper struct {
 	sources     Sources
 	blacklist   map[string]struct{}
 	skipNewCall map[string]struct{} // temporary approach
-	tracer      trace.Tracer
+	tracer      oteltrace.Tracer
 }
 
 // NewScrapper creates a new Scrapper instance.
-func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, dryRun bool, sources Sources, tracer trace.Tracer, searchQueries, searchQueriesIssues []string) *Scrapper {
+func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, dryRun bool, sources Sources, searchQueries, searchQueriesIssues []string) *Scrapper {
 	return &Scrapper{
 		gh: gh,
 		gp: gp,
@@ -104,7 +105,7 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, d
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
 		},
-		tracer: tracer,
+		tracer: otel.GetTracerProvider().Tracer("scrapper"),
 	}
 }
 

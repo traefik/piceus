@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"
@@ -17,9 +15,12 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.34.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/embedded"
 )
+
+type traceIDSet struct{}
 
 // Config holds the tracing configuration.
 type Config struct {
@@ -31,8 +32,37 @@ type Config struct {
 	ServiceName string
 }
 
-// NewTracer creates a new trace.Tracer.
-func NewTracer(ctx context.Context, cfg Config) (trace.Tracer, io.Closer, error) {
+// OTLP is an extension of otel tracer to add custom logging.
+type OTLP struct {
+	embedded.Tracer
+
+	tracer trace.Tracer
+}
+
+// Start returns a new span with the corresponding trace id field filled.
+func (t *OTLP) Start(ctx context.Context, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	ctx, span := t.tracer.Start(ctx, spanName, opts...)
+
+	if !span.SpanContext().IsSampled() || ctx.Value(traceIDSet{}) != nil {
+		return ctx, span
+	}
+
+	logger := log.Ctx(ctx).With().Str("trace_id", span.SpanContext().TraceID().String()).Logger()
+	ctx = context.WithValue(ctx, traceIDSet{}, struct{}{})
+
+	return logger.WithContext(ctx), span
+}
+
+// OTLPProvider is a trace provider which exports traces to OTLP.
+type OTLPProvider struct {
+	embedded.TracerProvider
+
+	provider *sdktrace.TracerProvider
+	exporter *otlptrace.Exporter
+}
+
+// NewOTLPProvider creates a new OTLPProvider.
+func NewOTLPProvider(ctx context.Context, cfg Config) (*OTLPProvider, error) {
 	auth := base64.StdEncoding.EncodeToString([]byte(cfg.Username + ":" + cfg.Password))
 
 	options := []otlptracehttp.Option{
@@ -46,63 +76,47 @@ func NewTracer(ctx context.Context, cfg Config) (trace.Tracer, io.Closer, error)
 
 	exporter, err := otlptracehttp.New(ctx, options...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("create otlp exporter: %w", err)
+		return nil, fmt.Errorf("create otlp exporter: %w", err)
 	}
 
-	res, err := resource.New(context.Background(),
-		resource.WithAttributes(
-			semconv.ServiceNameKey.String(cfg.ServiceName),
-			attribute.String("exporter", "jaeger"),
-			attribute.String("namespace", currentNamespace()),
-		),
-		resource.WithFromEnv(),
-		resource.WithTelemetrySDK(),
-		resource.WithOSType(),
-		resource.WithProcessCommandArgs(),
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("building resource: %w", err)
-	}
-
-	// Register the trace exporter with a TracerProvider, using a batch
-	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
-	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(cfg.Probability))),
-		sdktrace.WithResource(res),
-		sdktrace.WithSpanProcessor(bsp),
-	)
+	sampler := sdktrace.ParentBased(sdktrace.TraceIDRatioBased(cfg.Probability))
 
-	otel.SetTracerProvider(tracerProvider)
-	otel.SetTextMapPropagator(propagation.TraceContext{})
+	tc := propagation.TraceContext{}
+	otel.SetTextMapPropagator(tc)
 
-	log.Debug().Msg("OpenTelemetry tracer configured")
-
-	return tracerProvider.Tracer("github.com/traefik/plugin-service"), &tpCloser{
-		provider: tracerProvider,
+	return &OTLPProvider{
+		provider: sdktrace.NewTracerProvider(
+			sdktrace.WithSampler(sampler),
+			sdktrace.WithResource(resource.NewWithAttributes(
+				semconv.SchemaURL,
+				semconv.ServiceNameKey.String(cfg.ServiceName),
+				attribute.String("exporter", "jaeger"),
+				attribute.String("namespace", currentNamespace()),
+			)),
+			sdktrace.WithSpanProcessor(bsp),
+		),
 		exporter: exporter,
 	}, nil
 }
 
-// tpCloser converts a TraceProvider into an io.Closer.
-type tpCloser struct {
-	provider *sdktrace.TracerProvider
-	exporter *otlptrace.Exporter
+// Tracer creates a new tracer with the given name and options.
+func (p *OTLPProvider) Tracer(name string, opts ...trace.TracerOption) trace.Tracer {
+	return &OTLP{
+		tracer: p.provider.Tracer(name, opts...),
+	}
 }
 
-func (t *tpCloser) Close() error {
-	if t == nil {
-		return nil
+// Stop stops the provider once all traces have been uploaded.
+func (p *OTLPProvider) Stop(ctx context.Context) error {
+	if err := p.provider.ForceFlush(ctx); err != nil {
+		return err
 	}
-
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
-	defer cancel()
-
-	if err := t.exporter.Shutdown(ctx); err != nil {
+	if err := p.exporter.Shutdown(ctx); err != nil {
 		return err
 	}
 
-	return t.provider.Shutdown(ctx)
+	return p.provider.Shutdown(ctx)
 }
 
 func currentNamespace() string {
