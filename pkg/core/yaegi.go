@@ -53,6 +53,7 @@ func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Rep
 
 	// Creates temp GOPATH
 	var gop string
+
 	gop, err = os.MkdirTemp("", "traefik-plugin-gop")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
@@ -91,7 +92,9 @@ func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) (err
 			// Skip unsafe test
 			return nil
 		}
+
 		_, skip := s.skipNewCall[moduleName]
+
 		return yaegiMiddlewareCheck(goPath, manifest, skip)
 
 	case typeProvider:
@@ -141,6 +144,7 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 	next := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {})
 
 	timeout := 10 * time.Second
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -192,6 +196,7 @@ func callNew(ctx context.Context, next http.HandlerFunc, vConfig reflect.Value, 
 
 	go func() {
 		args := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(next), vConfig, reflect.ValueOf(middlewareName)}
+
 		results, err := safeFnCall(fnNew, args)
 		if err != nil {
 			errCh <- fmt.Errorf("the function `New` of %s produce a panic: %w", middlewareName, err)
@@ -206,6 +211,7 @@ func callNew(ctx context.Context, next http.HandlerFunc, vConfig reflect.Value, 
 		if !ok {
 			errCh <- fmt.Errorf("invalid handler type: %T", results[0].Interface())
 		}
+
 		errCh <- nil
 	}()
 
@@ -272,7 +278,6 @@ func decodeConfig(vConfig reflect.Value, testData interface{}) error {
 
 func checkFunctionNewSignature(fnNew, vConfig reflect.Value) error {
 	// check in types
-
 	if fnNew.Type().NumIn() != 4 {
 		return fmt.Errorf("invalid input arguments: got %d arguments expected %d", fnNew.Type().NumIn(), 4)
 	}

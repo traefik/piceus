@@ -48,6 +48,7 @@ func TestUnsafe(t *testing.T) {
 			require.NoError(t, err)
 
 			var manifest Manifest
+
 			err = yaml.Unmarshal(manifestBytes, &manifest)
 			require.NoError(t, err)
 
@@ -64,6 +65,7 @@ func TestUnsafe(t *testing.T) {
 			})
 
 			s := Scrapper{}
+
 			require.NoError(t, err)
 
 			err = s.yaegiCheck(manifest, tmpdir, "")
@@ -82,6 +84,7 @@ type LocalSources struct {
 
 func (s *LocalSources) Get(_ context.Context, _ *github.Repository, gop string, mod module.Version) error {
 	dest := filepath.Join(filepath.Join(gop, "src"), filepath.FromSlash(mod.Path))
+
 	err := os.MkdirAll(dest, 0o750)
 	if err != nil {
 		return fmt.Errorf("failed to create sources directory: %w", err)

@@ -22,7 +22,6 @@ type GitHub struct {
 // Get gets sources.
 func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop string, mod module.Version) error {
 	// Creates temp archive storage
-
 	rootArchive, err := os.MkdirTemp("", "traefik-plugin-archives")
 	if err != nil {
 		return fmt.Errorf("failed to create temp archive storage: %w", err)
@@ -47,6 +46,7 @@ func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop str
 	// Gets code (sources)
 
 	dest := filepath.Join(filepath.Join(gop, "src"), filepath.FromSlash(mod.Path))
+
 	err = os.MkdirAll(dest, 0o750)
 	if err != nil {
 		return fmt.Errorf("failed to create sources directory: %w", err)
@@ -90,6 +90,7 @@ func (s *GitHub) getArchive(ctx context.Context, repository *github.Repository, 
 	if err != nil {
 		return "", fmt.Errorf("failed to create archive file: %w", err)
 	}
+
 	defer func() { _ = arch.Close() }()
 
 	_, err = s.Client.Do(ctx, request, arch)

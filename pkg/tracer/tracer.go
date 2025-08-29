@@ -112,6 +112,7 @@ func (p *OTLPProvider) Stop(ctx context.Context) error {
 	if err := p.provider.ForceFlush(ctx); err != nil {
 		return err
 	}
+
 	if err := p.exporter.Shutdown(ctx); err != nil {
 		return err
 	}

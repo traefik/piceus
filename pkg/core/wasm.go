@@ -50,6 +50,7 @@ func (s *Scrapper) verifyRelease(ctx context.Context, repository *github.Reposit
 	}
 
 	assets := map[*github.ReleaseAsset]struct{}{}
+
 	for _, asset := range release.Assets {
 		if filepath.Ext(asset.GetName()) == ".zip" {
 			assets[asset] = struct{}{}
@@ -95,8 +96,10 @@ func (s *Scrapper) verifyZip(ctx context.Context, owner, repo string, assetID in
 		return err
 	}
 
-	var foundManifest bool
-	var wasmPluginFile *zip.File
+	var (
+		foundManifest  bool
+		wasmPluginFile *zip.File
+	)
 
 	for _, file := range reader.File {
 		switch file.Name {

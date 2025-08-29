@@ -31,6 +31,7 @@ func (f *mockPluginClient) Create(_ context.Context, p plugin.Plugin) error {
 	if f.create != nil {
 		return f.create(p)
 	}
+
 	return nil
 }
 
@@ -40,6 +41,7 @@ func (f *mockPluginClient) Update(_ context.Context, p plugin.Plugin) error {
 	if f.update != nil {
 		return f.update(p)
 	}
+
 	return nil
 }
 
@@ -47,6 +49,7 @@ func (f *mockPluginClient) GetByName(_ context.Context, name string) (*plugin.Pl
 	if f.getByName != nil {
 		return f.getByName(name)
 	}
+
 	return nil, nil
 }
 
@@ -374,6 +377,7 @@ func TestScrapper_process_all(t *testing.T) {
 		}
 
 		t.Log(repository.GetFullName())
+
 		_, err := scrapper.process(ctx, repository)
 		if err != nil {
 			t.Logf("%s: %v", repository.GetFullName(), err)
