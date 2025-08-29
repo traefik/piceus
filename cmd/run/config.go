@@ -16,8 +16,9 @@ type Config struct {
 	GithubSearchQueries       []string
 	GithubSearchQueriesIssues []string
 
-	Metrics meter.Config
-	Tracing tracer.Config
+	EnableMetrics bool
+	Metrics       meter.Config
+	Tracing       tracer.Config
 }
 
 func buildConfig(cliCtx *cli.Context) Config {
@@ -27,6 +28,7 @@ func buildConfig(cliCtx *cli.Context) Config {
 		DryRun:                    cliCtx.Bool(flagDryRun),
 		GithubSearchQueries:       cliCtx.StringSlice(flagGithubSearchQueries),
 		GithubSearchQueriesIssues: cliCtx.StringSlice(flagGithubSearchQueriesIssues),
+		EnableMetrics:             cliCtx.Bool(flagEnableMetrics),
 		Metrics: meter.Config{
 			Address:     cliCtx.String(flagMetricsAddress),
 			Insecure:    cliCtx.Bool(flagMetricsInsecure),

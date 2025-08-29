@@ -14,6 +14,7 @@ const (
 	flagGithubSearchQueries       = "github-search-queries"
 	flagGithubSearchQueriesIssues = "github-search-queries-issues"
 
+	flagEnableMetrics   = "enable-metrics"
 	flagMetricsAddress  = "metrics-address"
 	flagMetricsInsecure = "metrics-insecure"
 	flagMetricsUsername = "metrics-username"
@@ -96,6 +97,12 @@ func getMetricsFlags() []cli.Flag {
 			Usage:   "Address to send metrics",
 			EnvVars: []string{strcase.ToSNAKE(flagMetricsAddress)},
 			Value:   "otel-collector.observability.svc.cluster.local:4318",
+		},
+		&cli.BoolFlag{
+			Name:    flagEnableMetrics,
+			Usage:   "Enable metrics export",
+			EnvVars: []string{strcase.ToSNAKE(flagEnableMetrics)},
+			Value:   false,
 		},
 		&cli.BoolFlag{
 			Name:    flagMetricsInsecure,

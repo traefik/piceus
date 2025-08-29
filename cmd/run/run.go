@@ -29,13 +29,15 @@ func run(ctx context.Context, cfg Config) error {
 	}
 	defer stopTracer()
 
-	stopMeter, err := setupMetrics(ctx, cfg.Metrics)
-	if err != nil {
-		return fmt.Errorf("setting up metrics provider: %w", err)
+	if cfg.EnableMetrics {
+		stopMeter, err := setupMetrics(ctx, cfg.Metrics)
+		if err != nil {
+			return fmt.Errorf("setting up metrics provider: %w", err)
+		}
+		defer stopMeter()
 	}
-	defer stopMeter()
 
-	ghClient, err := newGitHubClient(ctx, cfg.GithubToken)
+	ghClient, err := newGitHubClient(ctx, cfg.GithubToken, cfg.EnableMetrics)
 	if err != nil {
 		return fmt.Errorf("creating github client: %w", err)
 	}
@@ -55,7 +57,7 @@ func run(ctx context.Context, cfg Config) error {
 	return scrapper.Run(ctx)
 }
 
-func newGitHubClient(ctx context.Context, token string) (*github.Client, error) {
+func newGitHubClient(ctx context.Context, token string, enableMetrics bool) (*github.Client, error) {
 	if token == "" {
 		return github.NewClient(nil), nil
 	}
@@ -66,19 +68,23 @@ func newGitHubClient(ctx context.Context, token string) (*github.Client, error) 
 
 	client := oauth2.NewClient(ctx, ts)
 
-	m := otel.Meter("piceus")
-	requestCounter, err := m.Int64Counter(
-		"http.requests.total",
-		metric.WithDescription("Number of API calls."),
-		metric.WithUnit("requests"),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating counter: %w", err)
-	}
+	if enableMetrics {
+		m := otel.Meter("piceus")
+		requestCounter, err := m.Int64Counter(
+			"http.requests.total",
+			metric.WithDescription("Number of API calls."),
+			metric.WithUnit("requests"),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("creating counter: %w", err)
+		}
 
-	client.Transport = &githubMetricsTripper{
-		requestCounter: requestCounter,
-		roundTripper:   otelhttp.NewTransport(client.Transport),
+		client.Transport = &githubMetricsTripper{
+			requestCounter: requestCounter,
+			roundTripper:   otelhttp.NewTransport(client.Transport),
+		}
+	} else {
+		client.Transport = otelhttp.NewTransport(client.Transport)
 	}
 
 	return github.NewClient(client), nil
