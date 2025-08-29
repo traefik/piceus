@@ -1,120 +1,134 @@
-run:
-  timeout: 5m
-
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-  gocyclo:
-    min-complexity: 15
-  goconst:
-    min-len: 5
-    min-occurrences: 3
-  misspell:
-    locale: US
-  funlen:
-    lines: -1
-    statements: 50
-  godox:
-    keywords:
-      - FIXME
-  gofumpt:
-    extra-rules: true
-  depguard:
-    rules:
-      main:
-        deny:
-          - pkg: "github.com/instana/testify"
-            desc: not allowed
-          - pkg: "github.com/pkg/errors"
-            desc: Should be replaced by standard lib errors package
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-    disabled-checks:
-      - httpNoBody
-      - sloppyReassign
-      - hugeParam
-      - rangeValCopy
-      - octalLiteral
-      - paramTypeCombine # already handle by gofumpt.extra-rules
-      - unnamedResult
-      - whyNoLint # already handle by nonolint
-
-  gosec:
-    excludes:
-      - G304 # Potential file inclusion via variable
-      - G307 # Deferring unsafe method "Close" on type "\*os.File"
-  gomoddirectives:
-    replace-allow-list:
-      - github.com/http-wasm/http-wasm-host-go
-
-  tagalign:
-    align: false
-    sort: true
-    order:
-      - description
-      - json
-      - toml
-      - yaml
-      - yml
-      - label
-      - label-slice-as-struct
-      - file
-      - kv
-      - export
-
+version: "2"
 linters:
-  enable-all: true
+  default: all
   disable:
-    - tenv # deprecated
-    - sqlclosecheck # not relevant (SQL)
-    - rowserrcheck # not relevant (SQL)
-    - cyclop # duplicate of gocyclo
-    - ireturn
-    - lll
+    - contextcheck
+    - cyclop
     - dupl
-    - tparallel
-    - paralleltest
-    - testpackage
     - err113
-    - wrapcheck
-    - nlreturn
-    - wsl
     - exhaustive
     - exhaustruct
-    - noctx
-    - varnamelen
-    - nilnil
-    - contextcheck
-    - nonamedreturns
     - forcetypeassert
-    - prealloc
+    - ireturn
+    - lll
     - mnd
-
+    - nilnil
+    - nlreturn
+    - noctx
+    - nonamedreturns
+    - noinlineerr
+    - paralleltest
+    - prealloc
+    - rowserrcheck
+    - sqlclosecheck
+    - testpackage
+    - tparallel
+    - varnamelen
+    - wrapcheck
+    - wsl
+    - wsl_v5
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: github.com/instana/testify
+              desc: not allowed
+            - pkg: github.com/pkg/errors
+              desc: Should be replaced by standard lib errors package
+    funlen:
+      lines: -1
+      statements: 50
+    goconst:
+      min-len: 5
+      min-occurrences: 3
+    gocritic:
+      disabled-checks:
+        - httpNoBody
+        - sloppyReassign
+        - hugeParam
+        - rangeValCopy
+        - octalLiteral
+        - paramTypeCombine
+        - unnamedResult
+        - whyNoLint
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    gocyclo:
+      min-complexity: 15
+    godox:
+      keywords:
+        - FIXME
+    gomoddirectives:
+      replace-allow-list:
+        - github.com/http-wasm/http-wasm-host-go
+    gosec:
+      excludes:
+        - G304
+        - G307
+    govet:
+      disable:
+        - fieldalignment
+      enable-all: true
+    misspell:
+      locale: US
+    tagalign:
+      align: false
+      sort: true
+      order:
+        - description
+        - json
+        - toml
+        - yaml
+        - yml
+        - label
+        - label-slice-as-struct
+        - file
+        - kv
+        - export
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - funlen
+          - goconst
+          - nosnakecase
+        path: (.+)_test.go
+      - path: pkg/core/scrapper.go
+        text: Function 'process' is too long
+      - path: pkg/core/scrapper.go
+        text: Function 'process' has too many statements
+      - path: pkg/core/scrapper.go
+        text: cyclomatic complexity \d+ of func `\(\*Scrapper\).process` is high
+      - path: pkg/sources/github.go
+        text: 'G110: Potential DoS vulnerability via decompression bomb'
+      - path: pkg/tracer/tracer.go
+        text: Setup returns interface \(go\.opentelemetry\.io/otel/sdk/trace.SpanProcessor\)
+      - path: (.+)\.go$
+        text: 'ST1000: at least one file in a package should have a package comment'
+      - path: (.+)\.go$
+        text: 'package-comments: should have a package comment'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude:
-    - 'ST1000: at least one file in a package should have a package comment'
-    - 'package-comments: should have a package comment'
-  exclude-rules:
-    - path: (.+)_test.go
-      linters:
-        - goconst
-        - funlen
-        - nosnakecase
-    - path: pkg/core/scrapper.go
-      text: Function 'process' is too long
-    - path: pkg/core/scrapper.go
-      text: Function 'process' has too many statements
-    - path: pkg/core/scrapper.go
-      text: 'cyclomatic complexity \d+ of func `\(\*Scrapper\).process` is high'
-    - path: pkg/sources/github.go
-      text: 'G110: Potential DoS vulnerability via decompression bomb'
-    - path: pkg/tracer/tracer.go
-      text: 'Setup returns interface \(go\.opentelemetry\.io/otel/sdk/trace.SpanProcessor\)'
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      extra-rules: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
