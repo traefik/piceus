@@ -71,6 +71,7 @@ func NewOTLPProvider(ctx context.Context, cfg Config) (*OTLPProvider, error) {
 	}, nil
 }
 
+// Meter returns a Meter with the given name and configured with options.
 func (p *OTLPProvider) Meter(name string, options ...metric.MeterOption) metric.Meter {
 	return p.provider.Meter(name, options...)
 }
