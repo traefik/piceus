@@ -152,6 +152,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 			if s.dryRun {
 				logger.Info().Msg("Dry run, not creating the issue")
 				logger.Debug().Interface("issue", issue).Send()
+
 				continue
 			}
 
@@ -167,6 +168,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 		if s.dryRun {
 			logger.Info().Msg("Dry run, not storing the plugin")
 			logger.Debug().Interface("data", data).Send()
+
 			continue
 		}
 
@@ -202,6 +204,7 @@ func (s *Scrapper) searchReposWithExistingIssue(ctx context.Context) ([]string, 
 	log.Debug().Strs("searchQueriesIssues", s.searchQueriesIssues).Send()
 
 	var all []string
+
 	for _, query := range s.searchQueriesIssues {
 		for {
 			issues, resp, err := s.gh.Search.Issues(ctx, query, opts)
@@ -239,6 +242,7 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 	log.Debug().Strs("searchQueries", s.searchQueries).Send()
 
 	var all []*github.Repository
+
 	for _, query := range s.searchQueries {
 		for {
 			repositories, resp, err := s.gh.Search.Repositories(ctx, query, opts)
@@ -248,6 +252,7 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 			}
 
 			all = append(all, repositories.Repositories...)
+
 			if resp.NextPage == 0 {
 				break
 			}
@@ -285,8 +290,10 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		return nil, err
 	}
 
-	var versions []string
-	var pluginName string
+	var (
+		versions   []string
+		pluginName string
+	)
 
 	switch manifest.Runtime {
 	case wasmRuntime:
@@ -368,6 +375,7 @@ func (s *Scrapper) loadManifest(ctx context.Context, repository *github.Reposito
 
 func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 	var m Manifest
+
 	err := yaml.Unmarshal([]byte(content), &m)
 	if err != nil {
 		return Manifest{}, fmt.Errorf("failed to read manifest content: %w", err)
@@ -375,6 +383,7 @@ func (s *Scrapper) loadManifestContent(content string) (Manifest, error) {
 
 	if len(m.TestData) > 0 {
 		var mp Manifest
+
 		err = pfile.DecodeContent(content, ".yaml", &mp)
 		if err != nil {
 			return Manifest{}, fmt.Errorf("failed to read testdata from manifest: %w", err)
@@ -447,6 +456,7 @@ func (s *Scrapper) getLatestTag(ctx context.Context, repository *github.Reposito
 	if len(tags) == 0 {
 		err := errors.New("missing tag/version")
 		span.RecordError(err)
+
 		return "", err
 	}
 
@@ -457,8 +467,10 @@ func (s *Scrapper) getVersions(ctx context.Context, repository *github.Repositor
 	ctx, span := s.tracer.Start(ctx, "scrapper_getVersions")
 	defer span.End()
 
-	var versions []string
-	var err error
+	var (
+		versions []string
+		err      error
+	)
 
 	if _, ok := os.LookupEnv(PrivateModeEnv); ok {
 		versions, err = s.getTags(ctx, repository)
@@ -474,6 +486,7 @@ func (s *Scrapper) getVersions(ctx context.Context, repository *github.Repositor
 	if len(versions) == 0 {
 		err = errors.New("missing tag/version")
 		span.RecordError(err)
+
 		return nil, err
 	}
 
@@ -493,6 +506,7 @@ func (s *Scrapper) getTags(ctx context.Context, repository *github.Repository) (
 	expSemver := regexp.MustCompile(`^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
 
 	var result []string
+
 	for _, tag := range tags {
 		name := tag.GetName()
 		if name == "" {
@@ -533,6 +547,7 @@ func (s *Scrapper) store(ctx context.Context, data *plugin.Plugin) error {
 			}
 
 			logger.Info().Msg("Stored")
+
 			return nil
 		}
 
@@ -606,6 +621,7 @@ func createMiddlewareSnippets(repository *github.Repository, testData map[string
 			},
 		},
 	}
+
 	k8sSnip, err := yaml.Marshal(k8s)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
@@ -686,6 +702,7 @@ func safeIssueBody(err error) string {
 	msgBody := err.Error()
 
 	var repKeys []string
+
 	for _, ev := range os.Environ() {
 		pair := strings.SplitN(ev, "=", 2)
 

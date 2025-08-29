@@ -18,8 +18,11 @@ func instantiate(ctx context.Context, runtime wazero.Runtime, mod wazero.Compile
 
 		builder := imports.NewBuilder().WithSocketsExtension("auto", mod)
 
-		var sys wasi.System
-		var err error
+		var (
+			sys wasi.System
+			err error
+		)
+
 		ctx, sys, err = builder.Instantiate(ctx, runtime)
 		if err != nil {
 			return nil, err
@@ -37,5 +40,6 @@ func instantiate(ctx context.Context, runtime wazero.Runtime, mod wazero.Compile
 	if err != nil {
 		return nil, err
 	}
+
 	return ctx, nil
 }

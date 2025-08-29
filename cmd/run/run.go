@@ -39,6 +39,7 @@ func run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("creating github client: %w", err)
 	}
+
 	gpClient := goproxy.NewClient("")
 
 	pgClient := plugin.New(cfg.PluginURL)
@@ -67,6 +68,7 @@ func newGitHubClient(ctx context.Context, token string) (*github.Client, error) 
 	client := oauth2.NewClient(ctx, ts)
 
 	m := otel.Meter("piceus")
+
 	requestCounter, err := m.Int64Counter(
 		"http.requests.total",
 		metric.WithDescription("Number of API calls."),
@@ -101,6 +103,7 @@ func setupMetrics(ctx context.Context, cfg meter.Config) (func(), error) {
 
 func setupTracing(ctx context.Context, cfg tracer.Config) (func(), error) {
 	tracePropagator := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{})
+
 	traceProvider, err := tracer.NewOTLPProvider(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("setup tracing provider: %w", err)
@@ -127,5 +130,6 @@ func (rt *githubMetricsTripper) RoundTrip(req *http.Request) (*http.Response, er
 		attribute.String("host", req.Host),
 		attribute.String("path", req.URL.Path),
 	))
+
 	return rt.roundTripper.RoundTrip(req)
 }

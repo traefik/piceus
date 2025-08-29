@@ -110,6 +110,7 @@ func (c *Client) Update(ctx context.Context, p Plugin) error {
 
 	if resp.StatusCode/100 != 2 {
 		body, _ := io.ReadAll(resp.Body)
+
 		return &APIError{
 			Message:    string(body),
 			StatusCode: resp.StatusCode,
@@ -156,6 +157,7 @@ func (c *Client) GetByName(ctx context.Context, name string) (*Plugin, error) {
 	}
 
 	var plgs []Plugin
+
 	err = json.Unmarshal(body, &plgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarchall data: %w", err)
