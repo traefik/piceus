@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -253,6 +254,9 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 			}
 
 			opts.Page = resp.NextPage
+			// Wait one minute between each search to reduce usage on GH Search API
+			// Rate-Limit is fixed on Search API to 30 calls per minute
+			time.Sleep(time.Minute)
 		}
 	}
 
