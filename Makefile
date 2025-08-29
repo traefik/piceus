@@ -15,6 +15,9 @@ default: clean check test build
 clean:
 	rm -rf cover.out
 
+lint:
+	golangci-lint run
+
 test: clean
 	go test -v -cover ./...
 
