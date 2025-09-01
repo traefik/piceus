@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -55,6 +56,8 @@ Traefik Plugin Analyzer will restart when you will close this issue.
 If you believe there is a problem with the Analyzer or this issue is the result of a false positive, please fill an issue on [piceus](https://github.com/traefik/piceus) repository.
 `
 )
+
+const searchThrottling = 25
 
 type pluginClient interface {
 	Create(ctx context.Context, p plugin.Plugin) error
@@ -240,12 +243,41 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 	log.Debug().Strs("searchQueries", s.searchQueries).Send()
 
 	var all []*github.Repository
+	var mu sync.Mutex
+	searchCount := 0
+
+	ticker := time.NewTicker(time.Minute)
+	done := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				mu.Lock()
+				searchCount = 0
+				mu.Unlock()
+			}
+		}
+	}()
+
 	for _, query := range s.searchQueries {
 		for {
 			repositories, resp, err := s.gh.Search.Repositories(ctx, query, opts)
 			if err != nil {
 				span.RecordError(err)
 				return nil, err
+			}
+			mu.Lock()
+			searchCount++
+			mu.Unlock()
+
+			// Wait one minute every time we reach searchThrottling searches over a minute to reduce usage on GH Search API
+			// Rate-Limit is fixed on Search API to 30 calls per minute
+			if searchCount%searchThrottling == 0 {
+				log.Debug().Msg("Sleeping for one minute")
+				time.Sleep(time.Minute)
 			}
 
 			all = append(all, repositories.Repositories...)
@@ -254,11 +286,11 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 			}
 
 			opts.Page = resp.NextPage
-			// Wait one minute between each search to reduce usage on GH Search API
-			// Rate-Limit is fixed on Search API to 30 calls per minute
-			time.Sleep(time.Minute)
 		}
 	}
+
+	ticker.Stop()
+	done <- true
 
 	return all, nil
 }
