@@ -57,7 +57,7 @@ If you believe there is a problem with the Analyzer or this issue is the result 
 `
 )
 
-const searchThrottling = 25
+const searchThrottling = 4
 
 type pluginClient interface {
 	Create(ctx context.Context, p plugin.Plugin) error
