@@ -30,9 +30,9 @@ func run(ctx context.Context, cfg Config) error {
 	defer stopTracer()
 
 	if cfg.EnableMetrics {
-		stopMeter, err := setupMetrics(ctx, cfg.Metrics)
-		if err != nil {
-			return fmt.Errorf("setting up metrics provider: %w", err)
+		stopMeter, mErr := setupMetrics(ctx, cfg.Metrics)
+		if mErr != nil {
+			return fmt.Errorf("setting up metrics provider: %w", mErr)
 		}
 		defer stopMeter()
 	}
