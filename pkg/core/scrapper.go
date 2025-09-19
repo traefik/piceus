@@ -178,6 +178,9 @@ func (s *Scrapper) Run(ctx context.Context) error {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to store plugin")
 		}
+		// We need to avoid getting rate limited
+		// With 500 plugins * 15s =~ 2h
+		time.Sleep(15 * time.Second)
 	}
 
 	return nil
@@ -224,6 +227,8 @@ func (s *Scrapper) searchReposWithExistingIssue(ctx context.Context) ([]string, 
 			}
 
 			opts.Page = resp.NextPage
+			// We need to avoid getting rate limited
+			time.Sleep(time.Minute)
 		}
 	}
 

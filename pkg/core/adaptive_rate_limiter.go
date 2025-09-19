@@ -20,8 +20,8 @@ type AdaptiveRateLimiter struct {
 func NewAdaptiveRateLimiter() *AdaptiveRateLimiter {
 	return &AdaptiveRateLimiter{
 		remaining:    30, // GitHub search API default limit
-		resetTime:    time.Now().Add(time.Minute),
-		safetyBuffer: 25, // Keep 25 requests as safety buffer
+		resetTime:    time.Now().Add(2 * time.Minute),
+		safetyBuffer: 27, // Keep 27 requests as safety buffer
 	}
 }
 
