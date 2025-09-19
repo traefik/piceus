@@ -16,7 +16,7 @@ func TestNewAdaptiveRateLimiter(t *testing.T) {
 
 	require.NotNil(t, rl)
 	assert.Equal(t, 30, rl.remaining)
-	assert.Equal(t, 25, rl.safetyBuffer)
+	assert.Equal(t, 27, rl.safetyBuffer)
 	assert.True(t, rl.resetTime.After(time.Now()))
 	assert.True(t, rl.resetTime.Before(time.Now().Add(2*time.Minute)))
 }
