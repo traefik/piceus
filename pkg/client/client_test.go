@@ -34,7 +34,7 @@ func TestNewWithOptions(t *testing.T) {
 		{
 			desc:      "without option",
 			responses: []http.Response{{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}"))}},
-			wantRequest: func(t assert.TestingT, i interface{}, i2 ...interface{}) bool {
+			wantRequest: func(_ assert.TestingT, _ interface{}, _ ...interface{}) bool {
 				return true
 			},
 		},
@@ -42,9 +42,9 @@ func TestNewWithOptions(t *testing.T) {
 			desc:      "with token",
 			options:   []Option{WithToken("token")},
 			responses: []http.Response{{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}"))}},
-			wantRequest: func(t assert.TestingT, i interface{}, i2 ...interface{}) bool {
+			wantRequest: func(t assert.TestingT, i interface{}, _ ...interface{}) bool {
 				req := i.(*http.Request)
-				assert.Equal(t, req.Header.Get("Authorization"), "Bearer token")
+				assert.Equal(t, "Bearer token", req.Header.Get("Authorization"))
 				return true
 			},
 		},
@@ -63,12 +63,14 @@ func TestNewWithOptions(t *testing.T) {
 		{
 			desc:    "with rate limit (limit from response)",
 			options: []Option{WithRateLimiter(10, 1, time.Now().Add(10*time.Second))},
-			responses: []http.Response{{StatusCode: http.StatusOK,
+			responses: []http.Response{{
+				StatusCode: http.StatusOK,
 				Header: map[string][]string{
-					headerRateRemaining: []string{"0"},
-					headerRateReset:     []string{strconv.Itoa(int(time.Now().Add(2 * time.Second).Unix()))},
+					headerRateRemaining: {"0"},
+					headerRateReset:     {strconv.Itoa(int(time.Now().Add(2 * time.Second).Unix()))},
 				},
-				Body: io.NopCloser(strings.NewReader("{}"))}},
+				Body: io.NopCloser(strings.NewReader("{}")),
+			}},
 			wantResponseTimeInterval: []time.Duration{time.Second, 2*time.Second + 500*time.Millisecond},
 		},
 		{
@@ -104,9 +106,9 @@ func TestNewWithOptions(t *testing.T) {
 				{StatusCode: http.StatusTooManyRequests, Body: io.NopCloser(strings.NewReader("{}"))},
 				{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}"))},
 			},
-			wantRequest: func(t assert.TestingT, i interface{}, i2 ...interface{}) bool {
+			wantRequest: func(t assert.TestingT, i interface{}, _ ...interface{}) bool {
 				req := i.(*http.Request)
-				assert.Equal(t, req.Header.Get("Authorization"), "Bearer token")
+				assert.Equal(t, "Bearer token", req.Header.Get("Authorization"))
 				return true
 			},
 			wantResponseTimeInterval: []time.Duration{time.Second, 2*time.Second + 500*time.Millisecond},
@@ -132,7 +134,7 @@ func TestNewWithOptions(t *testing.T) {
 			otel.SetMeterProvider(metricProvider)
 
 			c, err := New(ctx, tt.options...)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotNil(t, c)
 
 			try := 0
@@ -149,35 +151,37 @@ func TestNewWithOptions(t *testing.T) {
 				}
 				w.WriteHeader(tt.responses[try].StatusCode)
 
-				bodyBytes, err := io.ReadAll(tt.responses[try].Body)
-				require.NoError(t, err)
+				bodyBytes, rErr := io.ReadAll(tt.responses[try].Body)
+				assert.NoError(t, rErr)
 				_, err = w.Write(bodyBytes)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				try++
 			}))
 			t.Cleanup(server.Close)
 
 			start := time.Now()
-			_, err = c.client.Get(server.URL)
-			assert.NoError(t, err)
+			resp, err := c.client.Get(server.URL)
+			require.NoError(t, err)
+			err = resp.Body.Close()
+			require.NoError(t, err)
 
 			if len(tt.wantResponseTimeInterval) == 2 {
 				assert.WithinRange(t, time.Now(), start.Add(tt.wantResponseTimeInterval[0]), start.Add(tt.wantResponseTimeInterval[1]))
 			}
 
 			err = metricProvider.ForceFlush(ctx)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			data := metricdata.ResourceMetrics{}
 			err = reader.Collect(ctx, &data)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			foundMetrics := false
 			for _, sm := range data.ScopeMetrics {
 				for _, m := range sm.Metrics {
 					if m.Name == "http.requests.total" {
 						foundMetrics = true
-						assert.Equal(t, m.Data.(metricdata.Sum[int64]).DataPoints[0].Value, tt.wantMetricRequestsTotal)
+						assert.Equal(t, tt.wantMetricRequestsTotal, m.Data.(metricdata.Sum[int64]).DataPoints[0].Value)
 						break
 					}
 				}

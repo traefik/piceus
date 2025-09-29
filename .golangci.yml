@@ -110,6 +110,12 @@ linters:
         text: 'ST1000: at least one file in a package should have a package comment'
       - path: (.+)\.go$
         text: 'package-comments: should have a package comment'
+      - path: pkg/client/client_test.go
+        text: 'cognitive complexity \d+ of func `TestNewWithOptions` is high \(> \d+\)'
+      - path: pkg/client/adaptive_rate_limiter.go
+        text: 'const "headerRateRemaining" used as a key at http.Header, but "X-RateLimit-Remaining" is not canonical, want "X-Ratelimit-Remaining"'
+      - path: pkg/client/adaptive_rate_limiter.go
+        text: 'const "headerRateReset" used as a key at http.Header, but "X-RateLimit-Reset" is not canonical, want "X-Ratelimit-Reset"'
     paths:
       - third_party$
       - builtin$

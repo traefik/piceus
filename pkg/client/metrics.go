@@ -11,11 +11,11 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-type MetricsClient struct {
+type metricsClient struct {
 	enabled bool
 }
 
-func (mc MetricsClient) Apply(ctx context.Context, c *Client) error {
+func (mc metricsClient) Apply(_ context.Context, c *Client) error {
 	if !mc.enabled {
 		c.client.Transport = otelhttp.NewTransport(c.client.Transport)
 		return nil
