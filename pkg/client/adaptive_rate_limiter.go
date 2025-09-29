@@ -15,15 +15,14 @@ const (
 	headerRateReset     = "X-RateLimit-Reset"
 )
 
-// AdaptiveRateLimiter manages GitHub API rate limiting using responses headers.
-type AdaptiveRateLimiter struct {
+// adaptiveRateLimiter manages GitHub API rate limiting using responses headers.
+type adaptiveRateLimiter struct {
 	remaining    int
 	resetTime    time.Time
 	safetyBuffer int // Number of requests to keep as buffer
-
 }
 
-func (arl AdaptiveRateLimiter) Apply(ctx context.Context, c *Client) error {
+func (arl adaptiveRateLimiter) Apply(_ context.Context, c *Client) error {
 	c.client.Transport = &adaptiveRateLimiterTripper{
 		remaining:    arl.remaining,
 		resetTime:    arl.resetTime,
@@ -47,7 +46,7 @@ func (rl *adaptiveRateLimiterTripper) RoundTrip(req *http.Request) (*http.Respon
 	resp, err := rl.next.RoundTrip(req)
 
 	if resp == nil {
-		return resp, err
+		return nil, err
 	}
 
 	rl.mu.Lock()

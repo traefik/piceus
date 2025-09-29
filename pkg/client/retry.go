@@ -8,12 +8,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type RetryClient struct {
+type retryClient struct {
 	retryClient *retryablehttp.Client
 }
 
-func (r RetryClient) Apply(ctx context.Context, c *Client) error {
-
+func (r retryClient) Apply(ctx context.Context, c *Client) error {
 	r.retryClient.HTTPClient = &http.Client{
 		Transport: c.client.Transport,
 	}
