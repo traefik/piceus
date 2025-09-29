@@ -12,7 +12,6 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	_ = unsafe.Pointer(config)
 
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-
 	}), nil
 }
 

@@ -6,11 +6,11 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type AuthClient struct {
+type authClient struct {
 	token string
 }
 
-func (a AuthClient) Apply(ctx context.Context, c *Client) error {
+func (a authClient) Apply(ctx context.Context, c *Client) error {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: a.token},
 	)
