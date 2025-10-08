@@ -12,7 +12,6 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -77,7 +76,6 @@ type Scrapper struct {
 	blacklist   map[string]struct{}
 	skipNewCall map[string]struct{} // temporary approach
 	tracer      oteltrace.Tracer
-	rateLimiter *AdaptiveRateLimiter
 }
 
 // NewScrapper creates a new Scrapper instance.
@@ -111,8 +109,7 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, d
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
 		},
-		tracer:      otel.GetTracerProvider().Tracer("scrapper"),
-		rateLimiter: NewAdaptiveRateLimiter(),
+		tracer: otel.GetTracerProvider().Tracer("scrapper"),
 	}
 }
 
@@ -249,28 +246,11 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 
 	for _, query := range s.searchQueries {
 		for {
-			// Check if we should wait before making the request
-			if shouldWait, waitTime := s.rateLimiter.ShouldWait(); shouldWait {
-				log.Debug().
-					Dur("waitTime", waitTime).
-					Msg("Adaptive throttling: waiting for rate limit reset")
-
-				select {
-				case <-time.After(waitTime):
-					// Continue after wait
-				case <-ctx.Done():
-					return nil, ctx.Err()
-				}
-			}
-
 			repositories, resp, err := s.gh.Search.Repositories(ctx, query, opts)
 			if err != nil {
 				span.RecordError(err)
 				return nil, err
 			}
-
-			// Update rate limiter with response information
-			s.rateLimiter.UpdateFromResponse(resp)
 
 			all = append(all, repositories.Repositories...)
 			if resp.NextPage == 0 {
