@@ -23,7 +23,15 @@ type Client struct {
 // New creates a new client with optional middleware.
 func New(ctx context.Context, options ...Option) (*Client, error) {
 	c := &Client{
-		client: &http.Client{Transport: http.DefaultTransport},
+		client: &http.Client{
+			Transport: http.DefaultTransport,
+			// Disable redirect following to allow go-github library to detect 302 responses
+			// for archive links. The library expects 302 status codes but the default client
+			// follows redirects and returns 200 instead.
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
 	}
 
 	for _, opt := range options {
