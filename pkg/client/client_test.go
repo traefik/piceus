@@ -131,7 +131,7 @@ func TestNewWithOptions(t *testing.T) {
 							"Content-Type":   {"text/html; charset=UTF-8"},
 							"Content-Length": {"0"},
 						},
-						Body: nil,
+						Body: http.NoBody,
 					},
 				}
 			},

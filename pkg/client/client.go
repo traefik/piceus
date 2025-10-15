@@ -27,6 +27,11 @@ func New(ctx context.Context, options ...Option) (*Client, error) {
 			Transport: http.DefaultTransport,
 			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 				return http.ErrUseLastResponse
+             // Disable redirect following to allow go-github library to detect 302 responses
+             // for archive links. The library expects 302 status codes but the default client
+             // follows redirects and returns 200 instead.
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
 			},
 		},
 	}
