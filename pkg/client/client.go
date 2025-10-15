@@ -23,7 +23,11 @@ type Client struct {
 // New creates a new client with optional middleware.
 func New(ctx context.Context, options ...Option) (*Client, error) {
 	c := &Client{
-		client: &http.Client{Transport: http.DefaultTransport},
+		client: &http.Client{Transport: http.DefaultTransport,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
 	}
 
 	for _, opt := range options {
