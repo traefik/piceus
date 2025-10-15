@@ -112,6 +112,8 @@ linters:
         text: 'package-comments: should have a package comment'
       - path: pkg/client/client_test.go
         text: 'cognitive complexity \d+ of func `TestNewWithOptions` is high \(> \d+\)'
+      - path: pkg/client/client_test.go
+        text: 'Function name: TestNewWithOptions, Cyclomatic Complexity: \d+, Halstead Volume: \d+.\d+, Maintainability Index: \d+'
       - path: pkg/client/adaptive_rate_limiter.go
         text: 'const "headerRateRemaining" used as a key at http.Header, but "X-RateLimit-Remaining" is not canonical, want "X-Ratelimit-Remaining"'
       - path: pkg/client/adaptive_rate_limiter.go
