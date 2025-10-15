@@ -30,6 +30,7 @@ func TestNewWithOptions(t *testing.T) {
 		wantRequest              assert.ValueAssertionFunc
 		wantResponseTimeInterval []time.Duration
 		wantMetricRequestsTotal  int64
+		wantStatusCode           int
 	}{
 		{
 			desc: "without option",
@@ -39,6 +40,7 @@ func TestNewWithOptions(t *testing.T) {
 			wantRequest: func(_ assert.TestingT, _ interface{}, _ ...interface{}) bool {
 				return true
 			},
+			wantStatusCode: http.StatusOK,
 		},
 		{
 			desc:    "with token",
@@ -51,6 +53,7 @@ func TestNewWithOptions(t *testing.T) {
 				assert.Equal(t, "Bearer token", req.Header.Get("Authorization"))
 				return true
 			},
+			wantStatusCode: http.StatusOK,
 		},
 		{
 			desc:    "with rate limit (limit reached)",
@@ -59,6 +62,7 @@ func TestNewWithOptions(t *testing.T) {
 				return []http.Response{{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}"))}}
 			},
 			wantResponseTimeInterval: []time.Duration{0, time.Second + 100*time.Millisecond},
+			wantStatusCode:           http.StatusOK,
 		},
 		{
 			desc:    "with rate limit (limit not reached)",
@@ -67,6 +71,7 @@ func TestNewWithOptions(t *testing.T) {
 				return []http.Response{{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}"))}}
 			},
 			wantResponseTimeInterval: []time.Duration{0 * time.Second, 100 * time.Millisecond},
+			wantStatusCode:           http.StatusOK,
 		},
 		{
 			desc:    "with rate limit (limit from response)",
@@ -82,6 +87,7 @@ func TestNewWithOptions(t *testing.T) {
 				}}
 			},
 			wantResponseTimeInterval: []time.Duration{time.Second, 2*time.Second + 500*time.Millisecond},
+			wantStatusCode:           http.StatusOK,
 		},
 		{
 			desc:    "with metrics",
@@ -90,6 +96,7 @@ func TestNewWithOptions(t *testing.T) {
 				return []http.Response{{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}"))}}
 			},
 			wantMetricRequestsTotal: 1,
+			wantStatusCode:          http.StatusOK,
 		},
 		{
 			desc:    "with metrics (disabled)",
@@ -98,6 +105,7 @@ func TestNewWithOptions(t *testing.T) {
 				return []http.Response{{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}"))}}
 			},
 			wantMetricRequestsTotal: 0,
+			wantStatusCode:          http.StatusOK,
 		},
 		{
 			desc:    "with retry",
@@ -109,6 +117,26 @@ func TestNewWithOptions(t *testing.T) {
 				}
 			},
 			wantResponseTimeInterval: []time.Duration{time.Second, time.Second + 100*time.Millisecond},
+			wantStatusCode:           http.StatusOK,
+		},
+		{
+			desc:    "with retry, shouldn't follow redirects",
+			options: []Option{WithRetry(1, time.Second)},
+			responses: func() []http.Response {
+				return []http.Response{
+					{
+						StatusCode: http.StatusFound,
+						Header: map[string][]string{
+							"Location":       {"https://traefik.io"},
+							"Content-Type":   {"text/html; charset=UTF-8"},
+							"Content-Length": {"0"},
+						},
+						Body: http.NoBody,
+					},
+				}
+			},
+			wantResponseTimeInterval: []time.Duration{0, 100 * time.Millisecond},
+			wantStatusCode:           http.StatusFound,
 		},
 		{
 			desc: "with all options",
@@ -131,6 +159,7 @@ func TestNewWithOptions(t *testing.T) {
 			},
 			wantResponseTimeInterval: []time.Duration{time.Second, 2*time.Second + 500*time.Millisecond},
 			wantMetricRequestsTotal:  2,
+			wantStatusCode:           http.StatusOK,
 		},
 	}
 
@@ -170,10 +199,12 @@ func TestNewWithOptions(t *testing.T) {
 				}
 				w.WriteHeader(resp[try].StatusCode)
 
-				bodyBytes, rErr := io.ReadAll(resp[try].Body)
-				assert.NoError(t, rErr)
-				_, err = w.Write(bodyBytes)
-				assert.NoError(t, err)
+				if resp[try].Body != nil {
+					bodyBytes, rErr := io.ReadAll(resp[try].Body)
+					assert.NoError(t, rErr)
+					_, err = w.Write(bodyBytes)
+					assert.NoError(t, err)
+				}
 				try++
 			}))
 			t.Cleanup(server.Close)
@@ -183,6 +214,7 @@ func TestNewWithOptions(t *testing.T) {
 			require.NoError(t, err)
 			err = resp.Body.Close()
 			require.NoError(t, err)
+			assert.Equal(t, tt.wantStatusCode, resp.StatusCode)
 
 			if len(tt.wantResponseTimeInterval) == 2 {
 				assert.WithinRange(t, time.Now(), start.Add(tt.wantResponseTimeInterval[0]), start.Add(tt.wantResponseTimeInterval[1]))
