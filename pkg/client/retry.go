@@ -15,6 +15,9 @@ type retryClient struct {
 func (r retryClient) Apply(ctx context.Context, c *Client) error {
 	r.retryClient.HTTPClient = &http.Client{
 		Transport: c.client.Transport,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 	r.retryClient.Logger = log.Ctx(ctx)
 
