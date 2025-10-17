@@ -105,6 +105,7 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, d
 			"deas/teectl":                               {}, // Not a plugin
 			"GDGVIT/securum-exire":                      {}, // Not a plugin
 			"morzan1001/forward_auth_grpc_plugin":       {}, // piceus panic (excluded during fix)
+			"iobear/queryparameter-to-bearer":           {}, // Doesn't allow issues
 		},
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
