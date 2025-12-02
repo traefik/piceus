@@ -210,7 +210,7 @@ func Test_createMiddlewareSnippets(t *testing.T) {
                     Headers:
                         Foo: Bar
 `,
-		"k8s": `apiVersion: traefik.containo.us/v1alpha1
+		"k8s": `apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
     name: my-plugintest
