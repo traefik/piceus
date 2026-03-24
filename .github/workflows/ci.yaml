@@ -1,0 +1,159 @@
+name: 📦️ Piceus CI
+run-name: ${{ github.event_name != 'pull_request' && '🚀 Release' || '📦️ Build' }}
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  ARTIFACT_NAME: 'piceus'
+  TAG: ${{ github.event_name != 'pull_request' && github.ref_name }}
+
+jobs:
+  lint:
+    runs-on: 'shipfox-2vcpu-ubuntu-2404'
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
+    env:
+      # renovate: datasource=github-tags depName=golangci/golangci-lint versioning=loose
+      GOLANGCI_LINT_VERSION: 'v2.4.0'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Check and get dependencies
+        env:
+          GOPROXY: https://proxy.golang.org,https://athens.traefiklabs.tech,direct
+        run: |
+          go mod download
+          go mod tidy
+          git diff --exit-code go.mod
+          git diff --exit-code go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 #v9.2.0
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+
+  test:
+    runs-on: 'shipfox-2vcpu-ubuntu-2404'
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Test
+        if: ${{ github.event_name == 'pull_request' }}
+        run: make test
+
+  build:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+          - arch: arm64
+    runs-on: ${{ matrix.arch == 'amd64' && 'shipfox-2vcpu-ubuntu-2404' || 'shipfox-2vcpu-ubuntu-2404-arm' }}
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Google auth
+        if: ${{ github.event_name == 'push' || startsWith(github.ref, 'refs/tags/') }}
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          token_format: access_token
+          service_account: ${{ vars.GCP_TRAEFIKER_SA }}
+          workload_identity_provider: ${{ vars.GCP_GHA_IDENTITY_PROVIDER }}
+
+      - name: Login to GCR
+        if: ${{ github.event_name == 'push' || startsWith(github.ref, 'refs/tags/') }}
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Build binary
+        env:
+          GOPROXY: https://proxy.golang.org,https://athens.traefiklabs.tech,direct
+        run: make build
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build docker images
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: buildx.Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: gcr.io/traefiklabs/${{ env.ARTIFACT_NAME }}:${{ github.sha }}-${{ matrix.arch }}
+
+  push-manifest:
+    if: ${{ github.event_name == 'push' || startsWith(github.ref, 'refs/tags/') }}
+    runs-on: 'ubuntu-latest'
+    needs: [ build ]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Google auth
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          token_format: access_token
+          service_account: ${{ vars.GCP_TRAEFIKER_SA }}
+          workload_identity_provider: ${{ vars.GCP_GHA_IDENTITY_PROVIDER }}
+
+      - name: Login to GCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: docker meta
+        id: metadata
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: |
+            gcr.io/traefiklabs/${{ env.ARTIFACT_NAME }}
+          tags: |
+            type=match,pattern=(v\d+.\d+.\d+),group=1
+            type=match,pattern=(v\d+.\d+.\d+),value=${{ inputs.tag }},group=1
+            type=raw,value={{branch}}-{{sha}}-{{date 'X'}},enable={{is_default_branch}}
+
+      - name: Create and push manifest
+        uses: int128/docker-manifest-create-action@8aac06098a12365ccdf99372dcfb453ccce8a0b0 # v2.16.0
+        with:
+          tags: ${{ steps.metadata.outputs.tags }}
+          sources: |
+           gcr.io/traefiklabs/${{ env.ARTIFACT_NAME }}:${{ github.sha }}-amd64
+           gcr.io/traefiklabs/${{ env.ARTIFACT_NAME }}:${{ github.sha }}-arm64
+
+      - name: Clean temporary images
+        run: |
+          gcloud artifacts tags delete --quiet --package=${{ env.ARTIFACT_NAME }} --location=us --repository=gcr.io ${{ github.sha }}-amd64
+          gcloud artifacts tags delete --quiet --package=${{ env.ARTIFACT_NAME }} --location=us --repository=gcr.io ${{ github.sha }}-arm64
