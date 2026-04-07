@@ -124,7 +124,7 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           token_format: access_token
-          service_account: ${{ secret.GCP_TRAEFIKER_SA }}
+          service_account: ${{ secrets.GCP_TRAEFIKER_SA }}
           workload_identity_provider: ${{ secrets.GCP_GHA_IDENTITY_PROVIDER }}
 
       - name: Login to GCR
