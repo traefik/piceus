@@ -10,6 +10,7 @@ import (
 	"io"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/google/go-github/v57/github"
 	"github.com/http-wasm/http-wasm-host-go/handler"
@@ -19,6 +20,8 @@ import (
 )
 
 const wasmFile = "plugin.wasm"
+
+const wasmCheckTimeout = 60 * time.Second
 
 func (s *Scrapper) verifyWASMPlugin(ctx context.Context, repository *github.Repository, latestVersion string, manifest Manifest) (string, []string, error) {
 	pluginName := path.Join("github.com", repository.GetFullName())
@@ -121,7 +124,9 @@ func (s *Scrapper) verifyZip(ctx context.Context, owner, repo string, assetID in
 
 	switch manifest.Type {
 	case typeMiddleware:
-		err = checkWasmMiddleware(wasmPluginFile, manifest)
+		err = runWithTimeout(wasmCheckTimeout, func() error {
+			return checkWasmMiddleware(ctx, wasmPluginFile, manifest)
+		})
 		if err != nil {
 			return fmt.Errorf("failed to check wasm middleware: %w", err)
 		}
@@ -137,7 +142,7 @@ func (s *Scrapper) verifyZip(ctx context.Context, owner, repo string, assetID in
 	return nil
 }
 
-func checkWasmMiddleware(file *zip.File, manifest Manifest) error {
+func checkWasmMiddleware(ctx context.Context, file *zip.File, manifest Manifest) error {
 	readCloser, err := file.Open()
 	if err != nil {
 		return fmt.Errorf("failed to open wasm file: %w", err)
@@ -153,7 +158,6 @@ func checkWasmMiddleware(file *zip.File, manifest Manifest) error {
 		return fmt.Errorf("failed to marshal test data: %w", err)
 	}
 
-	ctx := context.Background()
 	runtime := host.NewRuntime(wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig()))
 
 	mod, err := runtime.CompileModule(ctx, pluginBytes)
@@ -174,6 +178,20 @@ func checkWasmMiddleware(file *zip.File, manifest Manifest) error {
 	}
 
 	return nil
+}
+
+func runWithTimeout(timeout time.Duration, fn func() error) error {
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- fn()
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-time.After(timeout):
+		return fmt.Errorf("timed out after %s", timeout)
+	}
 }
 
 func getWasmPath(manifest Manifest) (string, error) {
