@@ -101,7 +101,6 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, d
 			"thubolt/geoblock":                          {}, // Doesn't allow issues
 			"tmpim/tmpauth-traefik":                     {}, // Doesn't allow issues
 			"alexdelprete/traefik-oidc-relying-party":   {},
-			"jannschu/maintenance-response":             {}, // Block piceus
 			"FinalCAD/TraefikGrpcWebPlugin":             {}, // Crash piceus.
 			"deas/teectl":                               {}, // Not a plugin
 			"GDGVIT/securum-exire":                      {}, // Not a plugin
