@@ -17,7 +17,7 @@ require (
 	github.com/stealthrocket/wazergo v0.19.1
 	github.com/stretchr/testify v1.10.0
 	github.com/tetratelabs/wazero v1.7.2
-	github.com/traefik/paerser v0.2.0
+	github.com/traefik/paerser v0.2.3
 	github.com/traefik/yaegi v0.16.1
 	github.com/urfave/cli/v2 v2.27.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.62.0

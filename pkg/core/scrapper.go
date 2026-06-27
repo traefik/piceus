@@ -93,20 +93,19 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, d
 		sources: sources,
 		// TODO improve blacklist storage
 		blacklist: map[string]struct{}{
-			"containous/plugintestxxx":                   {},
-			"enzo24ofreopgh/traefik-maintenance-warden":  {}, // Doesn't allow issues
-			"esenac/traefik-custom-router":               {}, // Doesn't allow issues
-			"gitmotion/fosrl-badger":                     {}, // Doesn't allow issues
-			"odit-services/traefik-oidc-relying-party":   {}, // Doesn't allow issues
-			"thubolt/geoblock":                           {}, // Doesn't allow issues
-			"tmpim/tmpauth-traefik":                      {}, // Doesn't allow issues
-			"alexdelprete/traefik-oidc-relying-party":    {},
-			"FinalCAD/TraefikGrpcWebPlugin":              {}, // Crash piceus.
-			"deas/teectl":                                {}, // Not a plugin
-			"GDGVIT/securum-exire":                       {}, // Not a plugin
-			"morzan1001/forward_auth_grpc_plugin":        {}, // piceus panic (excluded during fix)
-			"iobear/queryparameter-to-bearer":            {}, // Doesn't allow issues
-			"CitronusAcademy/traefik-maintenance-plugin": {}, // empty map key in testData causes paerser panic
+			"containous/plugintestxxx":                  {},
+			"enzo24ofreopgh/traefik-maintenance-warden": {}, // Doesn't allow issues
+			"esenac/traefik-custom-router":              {}, // Doesn't allow issues
+			"gitmotion/fosrl-badger":                    {}, // Doesn't allow issues
+			"odit-services/traefik-oidc-relying-party":  {}, // Doesn't allow issues
+			"thubolt/geoblock":                          {}, // Doesn't allow issues
+			"tmpim/tmpauth-traefik":                     {}, // Doesn't allow issues
+			"alexdelprete/traefik-oidc-relying-party":   {},
+			"FinalCAD/TraefikGrpcWebPlugin":             {}, // Crash piceus.
+			"deas/teectl":                               {}, // Not a plugin
+			"GDGVIT/securum-exire":                      {}, // Not a plugin
+			"morzan1001/forward_auth_grpc_plugin":       {}, // piceus panic (excluded during fix)
+			"iobear/queryparameter-to-bearer":           {}, // Doesn't allow issues
 		},
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
