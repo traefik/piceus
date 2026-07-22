@@ -20,9 +20,10 @@ import (
 )
 
 type mockPluginClient struct {
-	create    func(p plugin.Plugin) error
-	update    func(p plugin.Plugin) error
-	getByName func(string) (*plugin.Plugin, error)
+	create        func(p plugin.Plugin) error
+	update        func(p plugin.Plugin) error
+	getByName     func(string) (*plugin.Plugin, error)
+	listBlacklist func() ([]plugin.BlacklistEntry, error)
 }
 
 func (f *mockPluginClient) Create(_ context.Context, p plugin.Plugin) error {
@@ -46,6 +47,13 @@ func (f *mockPluginClient) Update(_ context.Context, p plugin.Plugin) error {
 func (f *mockPluginClient) GetByName(_ context.Context, name string) (*plugin.Plugin, error) {
 	if f.getByName != nil {
 		return f.getByName(name)
+	}
+	return nil, nil
+}
+
+func (f *mockPluginClient) ListBlacklist(_ context.Context) ([]plugin.BlacklistEntry, error) {
+	if f.listBlacklist != nil {
+		return f.listBlacklist()
 	}
 	return nil, nil
 }
@@ -169,6 +177,33 @@ func TestScrapper_store(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestScrapper_loadBlacklist(t *testing.T) {
+	pgClient := &mockPluginClient{
+		listBlacklist: func() ([]plugin.BlacklistEntry, error) {
+			return []plugin.BlacklistEntry{{Repository: "deas/teectl", Reason: "Not a plugin"}}, nil
+		},
+	}
+
+	scrapper := NewScrapper(nil, nil, pgClient, true, nil, nil, nil)
+
+	require.NoError(t, scrapper.loadBlacklist(context.Background()))
+
+	assert.True(t, scrapper.isSkipped(context.Background(), nil, &github.Repository{FullName: github.String("deas/teectl")}))
+	assert.False(t, scrapper.isSkipped(context.Background(), nil, &github.Repository{FullName: github.String("traefik/plugindemo")}))
+}
+
+func TestScrapper_loadBlacklist_error(t *testing.T) {
+	pgClient := &mockPluginClient{
+		listBlacklist: func() ([]plugin.BlacklistEntry, error) {
+			return nil, errors.New("boom")
+		},
+	}
+
+	scrapper := NewScrapper(nil, nil, pgClient, true, nil, nil, nil)
+
+	assert.Error(t, scrapper.loadBlacklist(context.Background()))
 }
 
 func Test_createMiddlewareSnippets(t *testing.T) {

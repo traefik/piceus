@@ -2,6 +2,14 @@ package plugin
 
 import "time"
 
+// BlacklistEntry represents a repository (owner/repo) excluded from the scraping.
+type BlacklistEntry struct {
+	Repository string    `json:"repository"`
+	Reason     string    `json:"reason,omitempty"`
+	Author     string    `json:"author,omitempty"`
+	CreatedAt  time.Time `json:"createdAt"`
+}
+
 // Plugin The plugin information.
 type Plugin struct {
 	ID            string                 `json:"id,omitempty"`
