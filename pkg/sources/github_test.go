@@ -17,18 +17,17 @@ func TestGHSources_Get(t *testing.T) {
 	client := newGitHubClient(ctx, "")
 	sources := GitHub{Client: client}
 
-	// Require because the tested function modifies the working directory with Chdir.
+	// The tested function modifies the working directory with Chdir:
+	// t.Chdir restores the initial working directory at the end of the test.
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
-	t.Cleanup(func() {
-		_ = os.Chdir(wd)
-	})
+	t.Chdir(wd)
 
 	repo := &github.Repository{
-		Name: github.String("grignotin"),
+		Name: new("grignotin"),
 		Owner: &github.User{
-			Login: github.String("ldez"),
+			Login: new("ldez"),
 		},
 	}
 

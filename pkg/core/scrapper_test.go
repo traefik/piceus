@@ -68,25 +68,25 @@ func Test_loadManifestContent(t *testing.T) {
 				Summary:       "Simple example plugin.",
 				IconPath:      "icon.png",
 				BannerPath:    "https://example.org/a/banner.png",
-				TestData: map[string]interface{}{
-					"Headers": map[string]interface{}{
+				TestData: map[string]any{
+					"Headers": map[string]any{
 						"Foo": "Bar",
 					},
-					"trustIP": []interface{}{
+					"trustIP": []any{
 						"10.0.0.0/8",
 						"172.0.0.0/8",
 						"192.0.0.0/8",
 					},
-					"allowedGroups": []interface{}{
+					"allowedGroups": []any{
 						"ou=mathematicians,dc=example,dc=com",
 						"ou=foo,ou=scientists,dc=example,dc=com",
 					},
-					"valuesFloat": []interface{}{
+					"valuesFloat": []any{
 						float64(1),
 						2.01,
 						3.01,
 					},
-					"valuesInt": []interface{}{
+					"valuesInt": []any{
 						int64(1),
 						int64(2),
 						int64(3),
@@ -106,7 +106,7 @@ func Test_loadManifestContent(t *testing.T) {
 				Summary:       "Simple example plugin.",
 				IconPath:      "icon.png",
 				BannerPath:    "http://example.org/a/banner.png",
-				TestData: map[string]interface{}{
+				TestData: map[string]any{
 					"Foo": "Bar",
 				},
 			},
@@ -173,11 +173,11 @@ func TestScrapper_store(t *testing.T) {
 
 func Test_createMiddlewareSnippets(t *testing.T) {
 	repository := &github.Repository{
-		Name: github.String("plugintest"),
+		Name: new("plugintest"),
 	}
 
-	testData := map[string]interface{}{
-		"Headers": map[string]interface{}{
+	testData := map[string]any{
+		"Headers": map[string]any{
 			"Foo": "Bar",
 		},
 	}
@@ -187,7 +187,7 @@ func Test_createMiddlewareSnippets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := map[string]interface{}{
+	expected := map[string]any{
 		"toml": `
 [http]
 
@@ -228,10 +228,10 @@ spec:
 
 func Test_createProviderSnippets(t *testing.T) {
 	repository := &github.Repository{
-		Name: github.String("plugintest"),
+		Name: new("plugintest"),
 	}
 
-	testData := map[string]interface{}{
+	testData := map[string]any{
 		"foo": "Bar",
 	}
 
@@ -240,7 +240,7 @@ func Test_createProviderSnippets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := map[string]interface{}{
+	expected := map[string]any{
 		"toml": `
 [providers]
 
@@ -262,10 +262,10 @@ func Test_createProviderSnippets(t *testing.T) {
 func Test_parseImageURL(t *testing.T) {
 	repo := &github.Repository{
 		Owner: &github.User{
-			Login: github.String("traefik"),
+			Login: new("traefik"),
 		},
-		Name:    github.String("traefik"),
-		HTMLURL: github.String("https://github.com/traefik/traefik/"),
+		Name:    new("traefik"),
+		HTMLURL: new("https://github.com/traefik/traefik/"),
 	}
 
 	testCases := []struct {

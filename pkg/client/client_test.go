@@ -37,7 +37,7 @@ func TestNewWithOptions(t *testing.T) {
 			responses: func() []http.Response {
 				return []http.Response{{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}"))}}
 			},
-			wantRequest: func(_ assert.TestingT, _ interface{}, _ ...interface{}) bool {
+			wantRequest: func(_ assert.TestingT, _ any, _ ...any) bool {
 				return true
 			},
 			wantStatusCode: http.StatusOK,
@@ -48,7 +48,7 @@ func TestNewWithOptions(t *testing.T) {
 			responses: func() []http.Response {
 				return []http.Response{{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}"))}}
 			},
-			wantRequest: func(t assert.TestingT, i interface{}, _ ...interface{}) bool {
+			wantRequest: func(t assert.TestingT, i any, _ ...any) bool {
 				req := i.(*http.Request)
 				assert.Equal(t, "Bearer token", req.Header.Get("Authorization"))
 				return true
@@ -152,7 +152,7 @@ func TestNewWithOptions(t *testing.T) {
 					{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("{}"))},
 				}
 			},
-			wantRequest: func(t assert.TestingT, i interface{}, _ ...interface{}) bool {
+			wantRequest: func(t assert.TestingT, i any, _ ...any) bool {
 				req := i.(*http.Request)
 				assert.Equal(t, "Bearer token", req.Header.Get("Authorization"))
 				return true
@@ -177,7 +177,8 @@ func TestNewWithOptions(t *testing.T) {
 				)),
 				sdkmetric.WithReader(
 					reader,
-				))
+				),
+			)
 			otel.SetMeterProvider(metricProvider)
 
 			c, err := New(ctx, tt.options...)

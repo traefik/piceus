@@ -8,7 +8,9 @@ linters:
     - err113
     - exhaustive
     - exhaustruct
+    - exhaustruct_v5
     - forcetypeassert
+    - gomodguard # deprecated, replaced by gomodguard_v2
     - ireturn
     - lll
     - mnd
@@ -115,9 +117,9 @@ linters:
       - path: pkg/client/client_test.go
         text: 'Function name: TestNewWithOptions, Cyclomatic Complexity: \d+, Halstead Volume: \d+.\d+, Maintainability Index: \d+'
       - path: pkg/client/adaptive_rate_limiter.go
-        text: 'const "headerRateRemaining" used as a key at http.Header, but "X-RateLimit-Remaining" is not canonical, want "X-Ratelimit-Remaining"'
+        text: 'use "X-Ratelimit-Remaining" instead of "X-RateLimit-Remaining"'
       - path: pkg/client/adaptive_rate_limiter.go
-        text: 'const "headerRateReset" used as a key at http.Header, but "X-RateLimit-Reset" is not canonical, want "X-Ratelimit-Reset"'
+        text: 'use "X-Ratelimit-Reset" instead of "X-RateLimit-Reset"'
     paths:
       - third_party$
       - builtin$
@@ -133,7 +135,10 @@ formatters:
     - goimports
   settings:
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true
+        balance-calls: true
   exclusions:
     generated: lax
     paths:

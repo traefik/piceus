@@ -14,16 +14,16 @@ type Sources interface {
 
 // Manifest The plugin manifest.
 type Manifest struct {
-	DisplayName   string                 `json:"displayName,omitempty" toml:"displayName,omitempty" yaml:"displayName,omitempty"`
-	Runtime       string                 `json:"runtime,omitempty" toml:"runtime,omitempty" yaml:"runtime,omitempty"`
-	WasmPath      string                 `json:"wasmPath,omitempty" toml:"wasmPath,omitempty" yaml:"wasmPath,omitempty"`
-	Type          string                 `json:"type,omitempty" toml:"type,omitempty" yaml:"type,omitempty"`
-	Import        string                 `json:"import,omitempty" toml:"import,omitempty" yaml:"import,omitempty"`
-	BasePkg       string                 `json:"basePkg,omitempty" toml:"basePkg,omitempty" yaml:"basePkg,omitempty"`
-	Compatibility string                 `json:"compatibility,omitempty" toml:"compatibility,omitempty" yaml:"compatibility,omitempty"`
-	Summary       string                 `json:"summary,omitempty" toml:"summary,omitempty" yaml:"summary,omitempty"`
-	IconPath      string                 `json:"iconPath,omitempty" toml:"iconPath,omitempty" yaml:"iconPath,omitempty"`
-	BannerPath    string                 `json:"bannerPath,omitempty" toml:"bannerPath,omitempty" yaml:"bannerPath,omitempty"`
-	UseUnsafe     bool                   `json:"useUnsafe,omitempty" toml:"useUnsafe,omitempty" yaml:"useUnsafe,omitempty"`
-	TestData      map[string]interface{} `json:"testData,omitempty" toml:"testData,omitempty" yaml:"testData,omitempty"`
+	DisplayName   string         `json:"displayName,omitempty" toml:"displayName,omitempty" yaml:"displayName,omitempty"`
+	Runtime       string         `json:"runtime,omitempty" toml:"runtime,omitempty" yaml:"runtime,omitempty"`
+	WasmPath      string         `json:"wasmPath,omitempty" toml:"wasmPath,omitempty" yaml:"wasmPath,omitempty"`
+	Type          string         `json:"type,omitempty" toml:"type,omitempty" yaml:"type,omitempty"`
+	Import        string         `json:"import,omitempty" toml:"import,omitempty" yaml:"import,omitempty"`
+	BasePkg       string         `json:"basePkg,omitempty" toml:"basePkg,omitempty" yaml:"basePkg,omitempty"`
+	Compatibility string         `json:"compatibility,omitempty" toml:"compatibility,omitempty" yaml:"compatibility,omitempty"`
+	Summary       string         `json:"summary,omitempty" toml:"summary,omitempty" yaml:"summary,omitempty"`
+	IconPath      string         `json:"iconPath,omitempty" toml:"iconPath,omitempty" yaml:"iconPath,omitempty"`
+	BannerPath    string         `json:"bannerPath,omitempty" toml:"bannerPath,omitempty" yaml:"bannerPath,omitempty"`
+	UseUnsafe     bool           `json:"useUnsafe,omitempty" toml:"useUnsafe,omitempty" yaml:"useUnsafe,omitempty"`
+	TestData      map[string]any `json:"testData,omitempty" toml:"testData,omitempty" yaml:"testData,omitempty"`
 }
