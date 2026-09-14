@@ -167,3 +167,47 @@ func (c *Client) GetByName(ctx context.Context, name string) (*Plugin, error) {
 
 	return &plgs[0], nil
 }
+
+// ListBlacklist gets the blacklisted repositories.
+func (c *Client) ListBlacklist(ctx context.Context) ([]BlacklistEntry, error) {
+	baseURL, err := url.Parse(c.baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse base URL: %w", err)
+	}
+
+	endpoint, err := baseURL.Parse(path.Join(baseURL.Path, "blacklist"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse endpoint URL: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call API: %w", err)
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode/100 != 2 {
+		return nil, &APIError{
+			Message:    string(body),
+			StatusCode: resp.StatusCode,
+		}
+	}
+
+	var entries []BlacklistEntry
+	if err = json.Unmarshal(body, &entries); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
+	}
+
+	return entries, nil
+}
