@@ -218,13 +218,13 @@ func callNew(ctx context.Context, next http.HandlerFunc, vConfig reflect.Value, 
 }
 
 func checkRepoName(repository *github.Repository, moduleName string, manifest Manifest) error {
-	repoName := path.Join("github.com", repository.GetFullName())
+	repoName := strings.ToLower(path.Join("github.com", repository.GetFullName()))
 
-	if !strings.HasPrefix(moduleName, repoName) {
+	if !strings.HasPrefix(strings.ToLower(moduleName), repoName) {
 		return fmt.Errorf("unsupported plugin: the module name (%s) doesn't contain the GitHub repository name (%s)", moduleName, repoName)
 	}
 
-	if !strings.HasPrefix(manifest.Import, repoName) {
+	if !strings.HasPrefix(strings.ToLower(manifest.Import), repoName) {
 		return fmt.Errorf("unsupported plugin: the import name (%s) doesn't contain the GitHub repository name (%s)", manifest.Import, repoName)
 	}
 
