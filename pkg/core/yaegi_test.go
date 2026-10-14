@@ -11,31 +11,29 @@ import (
 
 	"github.com/google/go-github/v57/github"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
-	"gopkg.in/yaml.v3"
 )
 
 func TestUnsafe(t *testing.T) {
 	testCases := []struct {
 		desc        string
-		rootDir     string
+		fixture     string
 		expectError bool
 	}{
 		{
 			desc:        "Simple plugin should pass",
-			rootDir:     filepath.Join("fixtures", "simple"),
+			fixture:     "simple",
 			expectError: false,
 		},
 		{
 			desc:        "Simple plugin with unsafe without manifest.unsafe should fail",
-			rootDir:     filepath.Join("fixtures", "wrongunsafe"),
+			fixture:     "wrongunsafe",
 			expectError: true,
 		},
 
 		{
 			desc:        "Simple plugin with unsafe",
-			rootDir:     filepath.Join("fixtures", "unsafe"),
+			fixture:     "unsafe",
 			expectError: false,
 		},
 	}
@@ -44,29 +42,11 @@ func TestUnsafe(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
-			manifestBytes, err := os.ReadFile(filepath.Join(test.rootDir, manifestFile))
-			require.NoError(t, err)
+			manifest, goPath := loadFixture(t, test.fixture)
 
-			var manifest Manifest
-			err = yaml.Unmarshal(manifestBytes, &manifest)
-			require.NoError(t, err)
+			s := Scrapper{evaluator: newTestEvaluator(t)}
 
-			content, err := os.ReadFile(filepath.Join(test.rootDir, "go.mod"))
-			require.NoError(t, err)
-
-			mod, err := modfile.Parse("go.mod", content, nil)
-			require.NoError(t, err)
-
-			tmpdir := t.TempDir()
-			source := LocalSources{src: test.rootDir}
-			err = source.Get(context.Background(), nil, tmpdir, module.Version{
-				Path: mod.Module.Mod.Path,
-			})
-
-			s := Scrapper{}
-			require.NoError(t, err)
-
-			err = s.yaegiCheck(manifest, tmpdir, "")
+			err := s.yaegiCheck(t.Context(), manifest, goPath, "")
 			if test.expectError {
 				require.Error(t, err)
 			} else {

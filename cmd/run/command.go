@@ -2,6 +2,7 @@ package run
 
 import (
 	"github.com/ettle/strcase"
+	"github.com/traefik/piceus/pkg/core"
 	"github.com/traefik/piceus/pkg/logger"
 	"github.com/urfave/cli/v2"
 )
@@ -9,10 +10,12 @@ import (
 const (
 	flagLogLevel                  = "log-level"
 	flagGitHubToken               = "github-token"
+	flagGitHubTokenFile           = "github-token-file" //nolint:gosec // Flag name, not a credential.
 	flagDryRun                    = "dry-run"
 	flagPluginURL                 = "plugin-url"
 	flagGithubSearchQueries       = "github-search-queries"
 	flagGithubSearchQueriesIssues = "github-search-queries-issues"
+	flagEvaluationTimeout         = "evaluation-timeout"
 
 	flagEnableMetrics   = "enable-metrics"
 	flagMetricsAddress  = "metrics-address"
@@ -41,10 +44,14 @@ func Command() *cli.Command {
 				Value:   "info",
 			},
 			&cli.StringFlag{
-				Name:     flagGitHubToken,
-				Usage:    "GitHub Token.",
-				EnvVars:  []string{strcase.ToSNAKE(flagGitHubToken)},
-				Required: true,
+				Name:    flagGitHubToken,
+				Usage:   "GitHub Token. Deprecated: use --" + flagGitHubTokenFile + ".",
+				EnvVars: []string{strcase.ToSNAKE(flagGitHubToken)},
+			},
+			&cli.StringFlag{
+				Name:    flagGitHubTokenFile,
+				Usage:   "Path of a file that contains the GitHub Token.",
+				EnvVars: []string{strcase.ToSNAKE(flagGitHubTokenFile)},
 			},
 			&cli.BoolFlag{
 				Name:    flagDryRun,
@@ -74,11 +81,20 @@ func Command() *cli.Command {
 				EnvVars: []string{strcase.ToSNAKE(flagGithubSearchQueriesIssues)},
 				Value:   cli.NewStringSlice("is:open is:issue is:public author:traefiker"),
 			},
+			&cli.DurationFlag{
+				Name:    flagEvaluationTimeout,
+				Usage:   "Maximum duration of one plugin evaluation. Below 60s, slow WASM checks are stopped by this timeout.",
+				EnvVars: []string{strcase.ToSNAKE(flagEvaluationTimeout)},
+				Value:   core.DefaultEvaluationTimeout,
+			},
 		},
 		Action: func(cliCtx *cli.Context) error {
 			logger.Setup(cliCtx.String(flagLogLevel))
 
-			cfg := buildConfig(cliCtx)
+			cfg, err := buildConfig(cliCtx)
+			if err != nil {
+				return err
+			}
 
 			return run(cliCtx.Context, cfg)
 		},
