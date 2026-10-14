@@ -1,0 +1,7 @@
+displayName: Plugin That Crashes
+type: middleware
+
+import: github.com/traefik/plugintestcrash
+basePkg: plugin
+
+summary: Plugin that panics in a goroutine.

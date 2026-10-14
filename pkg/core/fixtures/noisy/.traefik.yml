@@ -1,0 +1,7 @@
+displayName: Noisy Plugin
+type: middleware
+
+import: github.com/traefik/plugintestnoisy
+basePkg: plugin
+
+summary: Plugin that writes on stdout and stderr.

@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/rs/zerolog/log"
+	"github.com/traefik/piceus/cmd/evaluate"
 	"github.com/traefik/piceus/cmd/run"
 	"github.com/urfave/cli/v2"
 )
@@ -14,6 +15,7 @@ func main() {
 		Usage: "Run piceus",
 		Commands: []*cli.Command{
 			run.Command(),
+			evaluate.Command(),
 		},
 	}
 

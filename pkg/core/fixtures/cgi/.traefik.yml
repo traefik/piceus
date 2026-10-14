@@ -1,0 +1,7 @@
+displayName: Plugin With CGI
+type: middleware
+
+import: github.com/traefik/plugintestcgi
+basePkg: plugin
+
+summary: Plugin that starts a shell with net/http/cgi.

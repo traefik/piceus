@@ -12,6 +12,7 @@ import (
 	"github.com/traefik/piceus/pkg/client"
 	"github.com/traefik/piceus/pkg/core"
 	"github.com/traefik/piceus/pkg/meter"
+	"github.com/traefik/piceus/pkg/sandbox"
 	"github.com/traefik/piceus/pkg/sources"
 	"github.com/traefik/piceus/pkg/tracer"
 	"go.opentelemetry.io/otel"
@@ -53,7 +54,12 @@ func run(ctx context.Context, cfg Config) error {
 		srcs = &sources.GoProxy{Client: gpClient}
 	}
 
-	scrapper := core.NewScrapper(ghClient.GithubClient(), gpClient, pgClient, cfg.DryRun, srcs, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
+	evaluator, err := core.NewEvaluator(sandbox.Available, core.WithEvaluationTimeout(cfg.EvaluationTimeout))
+	if err != nil {
+		return fmt.Errorf("creating plugin evaluator: %w", err)
+	}
+
+	scrapper := core.NewScrapper(ghClient.GithubClient(), gpClient, pgClient, cfg.DryRun, srcs, evaluator, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
 
 	return scrapper.Run(ctx)
 }

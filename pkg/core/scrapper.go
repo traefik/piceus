@@ -75,13 +75,14 @@ type Scrapper struct {
 	searchQueriesIssues []string
 
 	sources     Sources
+	evaluator   *Evaluator
 	blacklist   map[string]struct{}
 	skipNewCall map[string]struct{} // temporary approach
 	tracer      oteltrace.Tracer
 }
 
 // NewScrapper creates a new Scrapper instance.
-func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, dryRun bool, sources Sources, searchQueries, searchQueriesIssues []string) *Scrapper {
+func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, dryRun bool, sources Sources, evaluator *Evaluator, searchQueries, searchQueriesIssues []string) *Scrapper {
 	return &Scrapper{
 		gh: gh,
 		gp: gp,
@@ -92,7 +93,8 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, d
 		searchQueries:       searchQueries,
 		searchQueriesIssues: searchQueriesIssues,
 
-		sources: sources,
+		sources:   sources,
+		evaluator: evaluator,
 		// TODO improve blacklist storage
 		blacklist: map[string]struct{}{
 			"containous/plugintestxxx":                  {},
@@ -147,6 +149,12 @@ func (s *Scrapper) Run(ctx context.Context) error {
 
 			errResp := &github.ErrorResponse{}
 			if errors.As(err, &errResp) && errResp.Response.StatusCode >= http.StatusInternalServerError {
+				span.RecordError(err)
+				continue
+			}
+
+			// The evaluator did not give a result: it is not a plugin problem.
+			if errors.Is(err, errEvaluatorFailure) {
 				span.RecordError(err)
 				continue
 			}
