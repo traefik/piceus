@@ -1,0 +1,7 @@
+displayName: Plugin That Hangs
+type: middleware
+
+import: github.com/traefik/plugintesthang
+basePkg: plugin
+
+summary: Plugin that blocks in New.

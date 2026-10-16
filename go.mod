@@ -3,12 +3,14 @@ module github.com/traefik/piceus
 go 1.27.0
 
 require (
+	github.com/elastic/go-seccomp-bpf v1.6.0
 	github.com/ettle/strcase v0.2.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v57 v57.0.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/http-wasm/http-wasm-host-go v0.7.0
 	github.com/juliens/wasm-goexport v0.0.6
+	github.com/landlock-lsm/go-landlock v0.10.1
 	github.com/ldez/grignotin v0.10.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pelletier/go-toml v1.9.5
@@ -62,6 +64,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260831171406-18b4a7587f8a // indirect
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
+	kernel.org/pub/linux/libs/security/libcap/psx v1.2.77 // indirect
 )
 
 retract (

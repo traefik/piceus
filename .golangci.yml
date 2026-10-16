@@ -106,6 +106,9 @@ linters:
         text: cyclomatic complexity \d+ of func `\(\*Scrapper\).process` is high
       - path: pkg/sources/github.go
         text: 'G110: Potential DoS vulnerability via decompression bomb'
+      - linters:
+          - gosec
+        path: pkg/sandbox/sandbox_linux_test.go
       - path: pkg/tracer/tracer.go
         text: Setup returns interface \(go\.opentelemetry\.io/otel/sdk/trace.SpanProcessor\)
       - path: (.+)\.go$

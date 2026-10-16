@@ -2,10 +2,15 @@ package core
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-github/v57/github"
@@ -161,7 +166,7 @@ func TestScrapper_store(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
-			scrapper := NewScrapper(nil, nil, test.pgClient, true, nil, nil, nil)
+			scrapper := NewScrapper(nil, nil, test.pgClient, true, nil, nil, nil, nil)
 
 			data := &plugin.Plugin{Name: "test"}
 			err := scrapper.store(context.Background(), data)
@@ -169,6 +174,104 @@ func TestScrapper_store(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+// TestScrapper_Run_pentestV01 runs the full analysis of the pentest V01 proof of concept against a fake GitHub API.
+// The plugin starts a shell and returns its output in the error: the issue must not contain this output.
+func TestScrapper_Run_pentestV01(t *testing.T) {
+	// The versions come from the GitHub tags, not from the Go proxy.
+	t.Setenv(PrivateModeEnv, "true")
+
+	fixtureDir := filepath.Join("fixtures", "cgi")
+
+	manifest, err := os.ReadFile(filepath.Join(fixtureDir, manifestFile))
+	require.NoError(t, err)
+
+	goMod, err := os.ReadFile(filepath.Join(fixtureDir, "go.mod"))
+	require.NoError(t, err)
+
+	files := map[string]string{
+		manifestFile: string(manifest) + "\ntestData: {}\n",
+		"go.mod":     string(goMod),
+	}
+
+	var issues []github.IssueRequest
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /search/issues", func(rw http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, rw, http.StatusOK, github.IssuesSearchResult{Total: new(0)})
+	})
+	mux.HandleFunc("GET /search/repositories", func(rw http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, rw, http.StatusOK, github.RepositoriesSearchResult{
+			Total: new(1),
+			Repositories: []*github.Repository{{
+				Name:     new("plugintestcgi"),
+				FullName: new("traefik/plugintestcgi"),
+				Owner:    &github.User{Login: new("traefik")},
+				HTMLURL:  new("https://github.com/traefik/plugintestcgi"),
+			}},
+		})
+	})
+	mux.HandleFunc("GET /repos/traefik/plugintestcgi/tags", func(rw http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, rw, http.StatusOK, []*github.RepositoryTag{{Name: new("v1.0.0")}})
+	})
+	mux.HandleFunc("GET /repos/traefik/plugintestcgi/readme", func(rw http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, rw, http.StatusOK, fileContent("# Plugin"))
+	})
+	mux.HandleFunc("GET /repos/traefik/plugintestcgi/contents/{path...}", func(rw http.ResponseWriter, req *http.Request) {
+		content, ok := files[req.PathValue("path")]
+		if !ok {
+			rw.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		writeJSON(t, rw, http.StatusOK, fileContent(content))
+	})
+	mux.HandleFunc("POST /repos/traefik/plugintestcgi/issues", func(rw http.ResponseWriter, req *http.Request) {
+		var issue github.IssueRequest
+		assert.NoError(t, json.NewDecoder(req.Body).Decode(&issue))
+
+		issues = append(issues, issue)
+
+		writeJSON(t, rw, http.StatusCreated, github.Issue{Number: new(1)})
+	})
+	mux.HandleFunc("/", func(rw http.ResponseWriter, req *http.Request) {
+		t.Errorf("unexpected request: %s %s", req.Method, req.URL)
+		rw.WriteHeader(http.StatusNotFound)
+	})
+
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	ghClient := github.NewClient(nil)
+	ghClient.BaseURL, err = url.Parse(server.URL + "/")
+	require.NoError(t, err)
+
+	scrapper := NewScrapper(ghClient, nil, &mockPluginClient{}, false, &LocalSources{src: fixtureDir}, newTestEvaluator(t), []string{"topic:traefik-plugin"}, []string{"author:traefiker"})
+
+	err = scrapper.Run(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, issues, 1)
+	assert.Equal(t, issueTitle, issues[0].GetTitle())
+	assert.Contains(t, issues[0].GetBody(), `import "net/http/cgi" error`)
+	assert.NotContains(t, issues[0].GetBody(), "pwned")
+}
+
+func fileContent(content string) *github.RepositoryContent {
+	return &github.RepositoryContent{
+		Type:     new("file"),
+		Encoding: new("base64"),
+		Content:  new(base64.StdEncoding.EncodeToString([]byte(content))),
+	}
+}
+
+func writeJSON(t *testing.T, rw http.ResponseWriter, status int, v any) {
+	t.Helper()
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(status)
+	assert.NoError(t, json.NewEncoder(rw).Encode(v))
 }
 
 func Test_createMiddlewareSnippets(t *testing.T) {
@@ -333,7 +436,7 @@ func TestScrapper_process(t *testing.T) {
 	gpClient := goproxy.NewClient("")
 	srcs := &sources.GitHub{Client: ghClient}
 
-	scrapper := NewScrapper(ghClient, gpClient, pgClient, true, srcs, []string{"topic:traefik-plugin language:Go archived:false is:public"}, []string{"is:open is:issue is:public author:traefiker"})
+	scrapper := NewScrapper(ghClient, gpClient, pgClient, true, srcs, newTestEvaluator(t), []string{"topic:traefik-plugin language:Go archived:false is:public"}, []string{"is:open is:issue is:public author:traefiker"})
 
 	repository, _, err := ghClient.Repositories.Get(ctx, owner, repo)
 	require.NoError(t, err)
@@ -358,7 +461,7 @@ func TestScrapper_process_all(t *testing.T) {
 	gpClient := goproxy.NewClient("")
 	srcs := &sources.GitHub{Client: ghClient}
 
-	scrapper := NewScrapper(ghClient, gpClient, pgClient, true, srcs, []string{"topic:traefik-plugin language:Go archived:false is:public"}, []string{"is:open is:issue is:public author:traefiker"})
+	scrapper := NewScrapper(ghClient, gpClient, pgClient, true, srcs, newTestEvaluator(t), []string{"topic:traefik-plugin language:Go archived:false is:public"}, []string{"is:open is:issue is:public author:traefiker"})
 
 	reposWithExistingIssue, err := scrapper.searchReposWithExistingIssue(ctx)
 	require.NoError(t, err)
