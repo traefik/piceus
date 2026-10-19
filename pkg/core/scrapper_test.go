@@ -190,8 +190,8 @@ func TestScrapper_loadBlacklist(t *testing.T) {
 
 	require.NoError(t, scrapper.loadBlacklist(context.Background()))
 
-	assert.True(t, scrapper.isSkipped(context.Background(), nil, &github.Repository{FullName: github.String("deas/teectl")}))
-	assert.False(t, scrapper.isSkipped(context.Background(), nil, &github.Repository{FullName: github.String("traefik/plugindemo")}))
+	assert.True(t, scrapper.isSkipped(context.Background(), nil, &github.Repository{FullName: new("deas/teectl")}))
+	assert.False(t, scrapper.isSkipped(context.Background(), nil, &github.Repository{FullName: new("traefik/plugindemo")}))
 }
 
 func TestScrapper_loadBlacklist_error(t *testing.T) {
