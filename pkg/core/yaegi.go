@@ -202,7 +202,7 @@ func callNew(ctx context.Context, next http.HandlerFunc, vConfig reflect.Value, 
 			errCh <- fmt.Errorf("failed to create a new plugin instance: %w", results[1].Interface().(error))
 		}
 
-		_, ok := results[0].Interface().(http.Handler)
+		_, ok := reflect.TypeAssert[http.Handler](results[0])
 		if !ok {
 			errCh <- fmt.Errorf("invalid handler type: %T", results[0].Interface())
 		}
@@ -250,7 +250,7 @@ func checkModuleFile(mod *modfile.File, manifest Manifest) error {
 	return nil
 }
 
-func decodeConfig(vConfig reflect.Value, testData interface{}) error {
+func decodeConfig(vConfig reflect.Value, testData any) error {
 	cfg := &mapstructure.DecoderConfig{
 		DecodeHook:       mapstructure.StringToSliceHookFunc(","),
 		WeaklyTypedInput: true,
@@ -277,11 +277,11 @@ func checkFunctionNewSignature(fnNew, vConfig reflect.Value) error {
 		return fmt.Errorf("invalid input arguments: got %d arguments expected %d", fnNew.Type().NumIn(), 4)
 	}
 
-	if !fnNew.Type().In(0).Implements(reflect.TypeOf((*context.Context)(nil)).Elem()) {
+	if !fnNew.Type().In(0).Implements(reflect.TypeFor[context.Context]()) {
 		return errors.New("invalid input arguments: the 1st argument must have the type context.Context")
 	}
 
-	if !fnNew.Type().In(1).Implements(reflect.TypeOf((*http.Handler)(nil)).Elem()) {
+	if !fnNew.Type().In(1).Implements(reflect.TypeFor[http.Handler]()) {
 		return errors.New("invalid input arguments: the 2nd argument must have the type http.Handler")
 	}
 
@@ -299,11 +299,11 @@ func checkFunctionNewSignature(fnNew, vConfig reflect.Value) error {
 		return fmt.Errorf("invalid output arguments: got %d arguments expected %d", fnNew.Type().NumOut(), 2)
 	}
 
-	if !fnNew.Type().Out(0).Implements(reflect.TypeOf((*http.Handler)(nil)).Elem()) {
+	if !fnNew.Type().Out(0).Implements(reflect.TypeFor[http.Handler]()) {
 		return errors.New("invalid input arguments: the 1st argument must have the type http.Handler")
 	}
 
-	if !fnNew.Type().Out(1).Implements(reflect.TypeOf((*error)(nil)).Elem()) {
+	if !fnNew.Type().Out(1).Implements(reflect.TypeFor[error]()) {
 		return errors.New("invalid input arguments: the 2nd argument must have the type error")
 	}
 
@@ -344,5 +344,5 @@ func safeFnCall(fn reflect.Value, args []reflect.Value) (result []reflect.Value,
 
 	result = fn.Call(args)
 
-	return
+	return result, errCall
 }

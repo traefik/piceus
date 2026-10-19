@@ -35,6 +35,8 @@ const wasmRuntime = "wasm"
 
 const hiddenTopic = "traefik-plugin-hidden"
 
+const pluginKey = "plugin"
+
 const (
 	typeMiddleware = "middleware"
 	typeProvider   = "provider"
@@ -143,8 +145,8 @@ func (s *Scrapper) Run(ctx context.Context) error {
 			}
 
 			issue := &github.IssueRequest{
-				Title: github.String(issueTitle),
-				Body:  github.String(safeIssueBody(err)),
+				Title: new(issueTitle),
+				Body:  new(safeIssueBody(err)),
 			}
 
 			if s.dryRun {
@@ -207,8 +209,8 @@ func (s *Scrapper) isSkipped(ctx context.Context, reposWithExistingIssue []strin
 
 func (s *Scrapper) searchReposWithExistingIssue(ctx context.Context) ([]string, error) {
 	opts := &github.SearchOptions{
-		Sort:        "updated",
-		ListOptions: github.ListOptions{PerPage: 100},
+		Sort:    "updated",
+		PerPage: 100,
 	}
 
 	log.Debug().Strs("searchQueriesIssues", s.searchQueriesIssues).Send()
@@ -244,8 +246,8 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 	defer span.End()
 
 	opts := &github.SearchOptions{
-		Sort:        "updated",
-		ListOptions: github.ListOptions{PerPage: 100},
+		Sort:    "updated",
+		PerPage: 100,
 	}
 
 	log.Debug().Strs("searchQueries", s.searchQueries).Send()
@@ -572,7 +574,7 @@ func (s *Scrapper) store(ctx context.Context, data *plugin.Plugin) error {
 	return nil
 }
 
-func createSnippets(repository *github.Repository, manifest Manifest) (map[string]interface{}, error) {
+func createSnippets(repository *github.Repository, manifest Manifest) (map[string]any, error) {
 	switch manifest.Type {
 	case typeMiddleware:
 		return createMiddlewareSnippets(repository, manifest.TestData)
@@ -583,12 +585,12 @@ func createSnippets(repository *github.Repository, manifest Manifest) (map[strin
 	}
 }
 
-func createMiddlewareSnippets(repository *github.Repository, testData map[string]interface{}) (map[string]interface{}, error) {
-	snip := map[string]interface{}{
-		"http": map[string]interface{}{
-			"middlewares": map[string]interface{}{
-				"my-" + repository.GetName(): map[string]interface{}{
-					"plugin": map[string]interface{}{
+func createMiddlewareSnippets(repository *github.Repository, testData map[string]any) (map[string]any, error) {
+	snip := map[string]any{
+		"http": map[string]any{
+			"middlewares": map[string]any{
+				"my-" + repository.GetName(): map[string]any{
+					pluginKey: map[string]any{
 						repository.GetName(): testData,
 					},
 				},
@@ -606,15 +608,15 @@ func createMiddlewareSnippets(repository *github.Repository, testData map[string
 		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
 	}
 
-	k8s := map[string]interface{}{
+	k8s := map[string]any{
 		"apiVersion": "traefik.io/v1alpha1",
 		"kind":       "Middleware",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      "my-" + repository.GetName(),
 			"namespace": "my-namespace",
 		},
-		"spec": map[string]interface{}{
-			"plugin": map[string]interface{}{
+		"spec": map[string]any{
+			pluginKey: map[string]any{
 				repository.GetName(): testData,
 			},
 		},
@@ -624,17 +626,17 @@ func createMiddlewareSnippets(repository *github.Repository, testData map[string
 		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"toml": string(tomlSnip),
 		"yaml": string(yamlSnip),
 		"k8s":  string(k8sSnip),
 	}, nil
 }
 
-func createProviderSnippets(repository *github.Repository, testData map[string]interface{}) (map[string]interface{}, error) {
-	snip := map[string]interface{}{
-		"providers": map[string]interface{}{
-			"plugin": map[string]interface{}{
+func createProviderSnippets(repository *github.Repository, testData map[string]any) (map[string]any, error) {
+	snip := map[string]any{
+		"providers": map[string]any{
+			pluginKey: map[string]any{
 				repository.GetName(): testData,
 			},
 		},
@@ -650,7 +652,7 @@ func createProviderSnippets(repository *github.Repository, testData map[string]i
 		return nil, fmt.Errorf("failed to marshall (YAML): %w", err)
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"toml": string(tomlSnip),
 		"yaml": string(yamlSnip),
 	}, nil
