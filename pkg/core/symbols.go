@@ -14,8 +14,9 @@ func evaluationSymbols() interp.Exports {
 	// net/http/cgi starts programs.
 	deniedPackages := []string{"net/http/cgi/cgi"}
 
+	// os.NewFile gives access to the result file descriptor of the evaluator.
 	deniedSymbols := map[string][]string{
-		"os/os": {"StartProcess", "FindProcess"},
+		"os/os": {"StartProcess", "FindProcess", "NewFile"},
 	}
 
 	symbols := make(interp.Exports, len(stdlib.Symbols))

@@ -9,10 +9,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 
-	llsyscall "github.com/landlock-lsm/go-landlock/landlock/syscall"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -55,13 +55,10 @@ func TestApply(t *testing.T) {
 	assert.Contains(t, results["write_tmp"], "permission denied")
 	assert.Contains(t, results["exec"], "operation not permitted")
 	assert.Contains(t, results["start_process"], "operation not permitted")
-
-	// The network rules need Landlock ABI v4 or later.
-	if landlockNetSupported() {
-		assert.Contains(t, results["connect_imds"], "permission denied")
-		assert.Contains(t, results["connect_lo_80"], "permission denied")
-		assert.NotContains(t, results["connect_lo_443"], "permission denied")
-	}
+	assert.Contains(t, results["signal_parent"], "operation not permitted")
+	assert.Contains(t, results["connect_imds"], "permission denied")
+	assert.Contains(t, results["connect_lo_80"], "permission denied")
+	assert.NotContains(t, results["connect_lo_443"], "permission denied")
 }
 
 // runHelper applies the sandbox, tries each operation and prints the result of each operation as JSON.
@@ -73,13 +70,15 @@ func runHelper(workDir string) int {
 	}
 
 	results := map[string]string{
-		"read_workdir":   errString(readFile(filepath.Join(workDir, "file"))),
-		"write_workdir":  errString(os.WriteFile(filepath.Join(workDir, "new"), []byte("x"), 0o600)),
-		"read_passwd":    errString(readFile("/etc/passwd")),
-		"read_parent":    errString(readFile("/proc/" + strconv.Itoa(os.Getppid()) + "/environ")),
-		"write_tmp":      errString(os.WriteFile(filepath.Join(os.TempDir(), "piceus-sandbox-test"), []byte("x"), 0o600)),
-		"exec":           errString(exec.Command("/bin/true").Run()),
-		"start_process":  errString(startProcess()),
+		"read_workdir":  errString(readFile(filepath.Join(workDir, "file"))),
+		"write_workdir": errString(os.WriteFile(filepath.Join(workDir, "new"), []byte("x"), 0o600)),
+		"read_passwd":   errString(readFile("/etc/passwd")),
+		"read_parent":   errString(readFile("/proc/" + strconv.Itoa(os.Getppid()) + "/environ")),
+		"write_tmp":     errString(os.WriteFile(filepath.Join(os.TempDir(), "piceus-sandbox-test"), []byte("x"), 0o600)),
+		"exec":          errString(exec.Command("/bin/true").Run()),
+		"start_process": errString(startProcess()),
+		// The signal 0 does not change the parent: it only checks the permission.
+		"signal_parent":  errString(syscall.Kill(os.Getppid(), 0)),
 		"connect_imds":   errString(connect("169.254.169.254:80")),
 		"connect_lo_80":  errString(connect("127.0.0.1:80")),
 		"connect_lo_443": errString(connect("127.0.0.1:443")),
@@ -116,12 +115,6 @@ func connect(addr string) error {
 	}
 
 	return conn.Close()
-}
-
-func landlockNetSupported() bool {
-	abi, err := llsyscall.LandlockGetABIVersion()
-
-	return err == nil && abi >= 4
 }
 
 func errString(err error) string {

@@ -54,7 +54,7 @@ func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Rep
 	var gop string
 	gop, err = os.MkdirTemp("", "traefik-plugin-gop")
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
+		return "", nil, fmt.Errorf("%w: failed to create temp GOPATH: %w", errEvaluatorFailure, err)
 	}
 
 	defer func() { _ = os.RemoveAll(gop) }()

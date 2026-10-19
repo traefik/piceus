@@ -139,6 +139,8 @@ func (e *Evaluator) Evaluate(ctx context.Context, req evaluationRequest) error {
 	}
 
 	output, readErr := io.ReadAll(io.LimitReader(resultReader, maxEvaluationResult))
+	// A child blocked on a full pipe would end as a false timeout.
+	_, _ = io.Copy(io.Discard, resultReader)
 	waitErr := cmd.Wait()
 
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
@@ -146,13 +148,14 @@ func (e *Evaluator) Evaluate(ctx context.Context, req evaluationRequest) error {
 	}
 
 	// The stderr of the evaluator helps to debug, and this error never goes into an issue.
-	if readErr != nil {
+	// The result is trusted only on a clean exit: the plugin can write to the result pipe, then crash.
+	if readErr != nil || waitErr != nil {
 		return fmt.Errorf("%w: reading result: %w (stderr: %q)", errEvaluatorFailure, errors.Join(readErr, waitErr), stderr)
 	}
 
 	var result evaluationResult
 	if err = json.Unmarshal(output, &result); err != nil {
-		return fmt.Errorf("%w: decoding result: %w (stderr: %q)", errEvaluatorFailure, errors.Join(err, waitErr), stderr)
+		return fmt.Errorf("%w: decoding result: %w (stderr: %q)", errEvaluatorFailure, err, stderr)
 	}
 
 	if result.Error != "" {
@@ -187,7 +190,8 @@ func runEvaluation(ctx context.Context, in io.Reader, out io.Writer, restrict fu
 
 	var result evaluationResult
 	if err := evaluate(ctx, req, symbols); err != nil {
-		result.Error = err.Error()
+		// The error is plugin-controlled: it must stay below maxEvaluationResult.
+		result.Error = sanitizeIssueDetail(err.Error())
 	}
 
 	return json.NewEncoder(out).Encode(result)

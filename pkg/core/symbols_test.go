@@ -16,6 +16,7 @@ func Test_evaluationSymbols(t *testing.T) {
 	require.Contains(t, symbols, "os/os")
 	assert.NotContains(t, symbols["os/os"], "StartProcess")
 	assert.NotContains(t, symbols["os/os"], "FindProcess")
+	assert.NotContains(t, symbols["os/os"], "NewFile")
 	assert.Contains(t, symbols["os/os"], "ReadFile")
 
 	// The original symbols must not change.

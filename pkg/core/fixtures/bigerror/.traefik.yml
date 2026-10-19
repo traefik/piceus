@@ -1,0 +1,7 @@
+displayName: Plugin With A Big Error
+type: middleware
+
+import: github.com/traefik/plugintestbigerror
+basePkg: plugin
+
+summary: Plugin that returns an error larger than the result limit.

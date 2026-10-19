@@ -23,9 +23,6 @@ func Command() *cli.Command {
 		Hidden: true,
 		Action: func(cliCtx *cli.Context) error {
 			result := os.NewFile(core.EvaluatorResultFD, "result")
-			if result == nil {
-				return cli.Exit("missing result file descriptor", exitCodeFailure)
-			}
 			defer func() { _ = result.Close() }()
 
 			err := core.RunEvaluation(cliCtx.Context, os.Stdin, result, sandbox.Apply)

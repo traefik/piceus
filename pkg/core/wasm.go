@@ -147,7 +147,7 @@ func (s *Scrapper) verifyZip(ctx context.Context, owner, repo string, assetID in
 func (s *Scrapper) wasmCheck(ctx context.Context, file *zip.File, manifest Manifest) error {
 	workDir, err := os.MkdirTemp("", "traefik-plugin-wasm")
 	if err != nil {
-		return fmt.Errorf("creating temp directory: %w", err)
+		return fmt.Errorf("%w: creating temp directory: %w", errEvaluatorFailure, err)
 	}
 	defer func() { _ = os.RemoveAll(workDir) }()
 
@@ -172,7 +172,7 @@ func extractZipFile(file *zip.File, dest string) error {
 
 	out, err := os.OpenFile(dest, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
-		return fmt.Errorf("creating wasm file: %w", err)
+		return fmt.Errorf("%w: creating wasm file: %w", errEvaluatorFailure, err)
 	}
 	defer func() { _ = out.Close() }()
 
