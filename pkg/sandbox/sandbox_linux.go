@@ -21,6 +21,12 @@ func Available() error {
 		return errors.New("landlock is not available")
 	}
 
+	// Landlock ABI v4 restricts TCP connections, and ABI v6 scopes signals.
+	// Below v6, the plugin can signal any process of the same user, seccomp does not block kill.
+	if abi < 6 {
+		return fmt.Errorf("landlock ABI v6 or later is required, got v%d", abi)
+	}
+
 	if !seccomp.Supported() {
 		return errors.New("seccomp is not available")
 	}
@@ -33,7 +39,8 @@ func Available() error {
 //   - can read and write only in workDir,
 //   - can read only the system files that TLS, DNS and time zones need,
 //   - cannot start a program, trace or read the memory of another process,
-//   - can open TCP connections only to the ports 443 and 53 (if the kernel supports Landlock ABI v4 or later).
+//   - can open TCP connections only to the ports 443 and 53,
+//   - cannot send signals to processes outside of its Landlock domain.
 func Apply(workDir string) error {
 	if err := Available(); err != nil {
 		return err
@@ -56,8 +63,8 @@ func Apply(workDir string) error {
 		"/etc/localtime",
 	}
 
-	// The file system rules are mandatory: Available makes sure that Landlock ABI v1 or later is present.
-	// BestEffort only drops the rules that the kernel does not know (network, IPC scopes).
+	// Available makes sure that Landlock ABI v6 or later is present: the file system, network and signal rules are enforced.
+	// BestEffort only drops the rules of the ABI versions after v6.
 	err := landlock.V10.BestEffort().Restrict(
 		landlock.RWDirs(workDir),
 		landlock.RODirs(readOnlyDirs...).IgnoreIfMissing(),

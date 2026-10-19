@@ -1,0 +1,7 @@
+displayName: Plugin That Fakes A Result
+type: middleware
+
+import: github.com/traefik/plugintestfakeresult
+basePkg: plugin
+
+summary: Plugin that writes a valid result on the result file descriptor, then crashes.

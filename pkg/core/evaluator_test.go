@@ -42,6 +42,7 @@ func TestEvaluator_Evaluate(t *testing.T) {
 		fixture     string
 		timeout     time.Duration
 		sandbox     bool
+		fullSymbols bool
 		expectError bool
 		contains    []string
 		notContains []string
@@ -95,6 +96,28 @@ func TestEvaluator_Evaluate(t *testing.T) {
 			expectError: true,
 			isFailure:   true,
 		},
+		{
+			desc:        "os.NewFile is not available",
+			fixture:     "fakeresult",
+			expectError: true,
+			contains:    []string{"NewFile"},
+		},
+		{
+			// The full symbols give os.NewFile to the plugin: only the exit status stops the fake result.
+			desc:        "a valid result written by the plugin before a crash is an evaluator failure",
+			fixture:     "fakeresult",
+			fullSymbols: true,
+			expectError: true,
+			isFailure:   true,
+		},
+		{
+			desc:        "an error larger than the result limit is truncated",
+			fixture:     "bigerror",
+			timeout:     5 * time.Second,
+			expectError: true,
+			contains:    []string{"xxx" + issueDetailTruncation},
+			notContains: []string{"timed out"},
+		},
 	}
 
 	for _, test := range testCases {
@@ -110,6 +133,10 @@ func TestEvaluator_Evaluate(t *testing.T) {
 			evaluator := newTestEvaluator(t)
 			if test.timeout > 0 {
 				evaluator.timeout = test.timeout
+			}
+
+			if test.fullSymbols {
+				evaluator.env = append(evaluator.env, fullSymbolsTestEnv+"=1")
 			}
 
 			start := time.Now()

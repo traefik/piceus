@@ -38,17 +38,17 @@ Piceus runs the code of each plugin in a child process (`piceus evaluate`):
 
 - The child process has an empty environment.
 - Landlock limits the file system access to the plugin directory and to the system files that TLS, DNS and time zones need.
-  On Linux 6.7 or later, Landlock also limits TCP connections to the ports 443 and 53.
+  Landlock also limits TCP connections to the ports 443 and 53, and blocks signals to processes outside of the sandbox.
 - seccomp blocks `execve`, `execveat`, `ptrace` and `process_vm_readv`/`process_vm_writev`.
 - Piceus kills the child process group at the end of the evaluation timeout (`--evaluation-timeout`, 90 seconds by default).
 
-Piceus requires Linux with Landlock and seccomp. `piceus run` does not start if the kernel or the container runtime blocks them.
+Piceus requires Linux 6.12 or later (Landlock ABI v6) and seccomp. `piceus run` does not start if the kernel or the container runtime blocks them.
 Network isolation (cloud metadata endpoint, cluster services) must be done by the infrastructure.
 
 ### Test a plugin with `piceus evaluate`
 
 `piceus evaluate` is the command that Piceus runs for each plugin. You can run it yourself to check a plugin in the same sandbox, without GitHub.
-It works only on Linux, with Landlock and seccomp.
+It works only on Linux 6.12 or later, with Landlock and seccomp.
 
 1. Build Piceus:
 
