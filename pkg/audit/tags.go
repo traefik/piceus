@@ -1,0 +1,176 @@
+package audit
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/google/go-github/v57/github"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
+)
+
+var majorSuffix = regexp.MustCompile(`^v\d+$`)
+
+// TagCheck compares the commit a tag points at today with the one the Go module proxy pinned at publication.
+type TagCheck struct {
+	ProxyCommit string `json:"proxyCommit,omitempty"`
+	TagCommit   string `json:"tagCommit,omitempty"`
+	Moved       bool   `json:"moved"`
+	Error       string `json:"error,omitempty"`
+}
+
+// TagChecker reads the Go module proxy and GitHub.
+type TagChecker struct {
+	GoProxyURL string
+	HTTP       *http.Client
+	GitHub     *github.Client
+}
+
+// NewTagChecker creates a TagChecker using the Go module proxy at goProxyURL.
+func NewTagChecker(goProxyURL string, gh *github.Client) *TagChecker {
+	return &TagChecker{
+		GoProxyURL: strings.TrimSuffix(goProxyURL, "/"),
+		HTTP:       &http.Client{Timeout: time.Minute},
+		GitHub:     gh,
+	}
+}
+
+// CheckTags fills Result.Tag for the yaegi plugins with dependencies:
+// plugin-service serves them from a GitHub zipball, the others come from the Go module proxy, already pinned.
+func CheckTags(ctx context.Context, t *TagChecker, results []Result, concurrency int) {
+	forEach(ctx, len(results), concurrency, func(i int) {
+		r := &results[i]
+		if r.IsWasm() || !strings.HasPrefix(r.Module, "github.com/") {
+			return
+		}
+
+		deps, err := t.HasDependencies(ctx, r.Module, r.Version)
+		if err != nil {
+			r.Tag = &TagCheck{Error: err.Error()}
+			return
+		}
+
+		if deps {
+			r.Tag = t.Check(ctx, r.Module, r.Version)
+		}
+	})
+}
+
+// HasDependencies reports whether the go.mod of module@version requires other modules.
+func (t *TagChecker) HasDependencies(ctx context.Context, mod, version string) (bool, error) {
+	data, err := t.proxyGet(ctx, mod, version, ".mod")
+	if err != nil {
+		return false, err
+	}
+
+	file, err := modfile.ParseLax("go.mod", data, nil)
+	if err != nil {
+		return false, fmt.Errorf("parse go.mod: %w", err)
+	}
+
+	return len(file.Require) > 0, nil
+}
+
+// Check compares the tag commit on GitHub with the Origin.Hash of the Go module proxy.
+func (t *TagChecker) Check(ctx context.Context, mod, version string) *TagCheck {
+	check := &TagCheck{}
+
+	proxyCommit, err := t.ProxyCommit(ctx, mod, version)
+	if err != nil {
+		check.Error = err.Error()
+		return check
+	}
+
+	check.ProxyCommit = proxyCommit
+
+	owner, repo, tag := githubRef(mod, version)
+
+	check.TagCommit, _, err = t.GitHub.Repositories.GetCommitSHA1(ctx, owner, repo, tag, "")
+	if err != nil {
+		check.Error = fmt.Sprintf("tag commit: %v", err)
+		return check
+	}
+
+	check.Moved = check.TagCommit != check.ProxyCommit
+
+	return check
+}
+
+// ProxyCommit returns the commit pinned by the Go module proxy for module@version.
+func (t *TagChecker) ProxyCommit(ctx context.Context, mod, version string) (string, error) {
+	data, err := t.proxyGet(ctx, mod, version, ".info")
+	if err != nil {
+		return "", err
+	}
+
+	var info struct {
+		Origin *struct {
+			Hash string `json:"Hash"` //nolint:tagliatelle // Go module proxy protocol.
+		} `json:"Origin"` //nolint:tagliatelle // Go module proxy protocol.
+	}
+
+	if err = json.Unmarshal(data, &info); err != nil {
+		return "", fmt.Errorf("decode info: %w", err)
+	}
+
+	if info.Origin == nil || info.Origin.Hash == "" {
+		return "", errors.New("no origin in the proxy info")
+	}
+
+	return info.Origin.Hash, nil
+}
+
+func (t *TagChecker) proxyGet(ctx context.Context, mod, version, ext string) ([]byte, error) {
+	escMod, err := module.EscapePath(mod)
+	if err != nil {
+		return nil, err
+	}
+
+	escVersion, err := module.EscapeVersion(version)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s/@v/%s%s", t.GoProxyURL, escMod, escVersion, ext), http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := t.HTTP.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("go proxy %s returned %d", ext, resp.StatusCode)
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
+// githubRef returns the repository and tag of a module version hosted on GitHub.
+// A module in a subdirectory is tagged <dir>/<version>; a /vN suffix is not a directory.
+func githubRef(mod, version string) (string, string, string) {
+	parts := strings.Split(mod, "/")
+	owner, repo := parts[1], parts[2]
+
+	dir := parts[3:]
+	if len(dir) > 0 && majorSuffix.MatchString(dir[len(dir)-1]) {
+		dir = dir[:len(dir)-1]
+	}
+
+	if len(dir) == 0 {
+		return owner, repo, version
+	}
+
+	return owner, repo, strings.Join(dir, "/") + "/" + version
+}
