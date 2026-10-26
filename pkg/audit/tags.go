@@ -28,6 +28,8 @@ type TagCheck struct {
 	TagCommit   string `json:"tagCommit,omitempty"`
 	Moved       bool   `json:"moved"`
 	Error       string `json:"error,omitempty"`
+	// NoDependencies the plugin is served from the Go module proxy, already pinned: nothing to check.
+	NoDependencies bool `json:"noDependencies,omitempty"`
 }
 
 // TagChecker reads the Go module proxy and GitHub.
@@ -46,12 +48,12 @@ func NewTagChecker(goProxyURL string, gh *github.Client) *TagChecker {
 	}
 }
 
-// CheckTags fills Result.Tag for the yaegi plugins with dependencies:
+// CheckTags fills Result.Tag for the yaegi plugins hosted on GitHub. Only those with dependencies are checked:
 // plugin-service serves them from a GitHub zipball, the others come from the Go module proxy, already pinned.
 func CheckTags(ctx context.Context, t *TagChecker, results []Result, concurrency int) {
 	forEach(ctx, len(results), concurrency, func(i int) {
 		r := &results[i]
-		if r.IsWasm() || !strings.HasPrefix(r.Module, "github.com/") {
+		if r.IsWasm() || !IsGitHubModule(r.Module) {
 			return
 		}
 
@@ -61,9 +63,12 @@ func CheckTags(ctx context.Context, t *TagChecker, results []Result, concurrency
 			return
 		}
 
-		if deps {
-			r.Tag = t.Check(ctx, r.Module, r.Version)
+		if !deps {
+			r.Tag = &TagCheck{NoDependencies: true}
+			return
 		}
+
+		r.Tag = t.Check(ctx, r.Module, r.Version)
 	})
 }
 
@@ -166,7 +171,7 @@ func (t *TagChecker) Gone(ctx context.Context, entry catalog.Entry) (bool, error
 		}
 	}
 
-	if !strings.HasPrefix(entry.Module, "github.com/") {
+	if !IsGitHubModule(entry.Module) {
 		return false, nil
 	}
 
@@ -227,7 +232,14 @@ func (e *proxyError) Error() string {
 	return fmt.Sprintf("go proxy %s returned %d", e.ext, e.status)
 }
 
-// githubRef returns the repository and tag of a module version hosted on GitHub.
+// IsGitHubModule reports whether mod is a github.com/<owner>/<repo> module, the only ones CheckTags can check.
+func IsGitHubModule(mod string) bool {
+	parts := strings.Split(mod, "/")
+
+	return len(parts) >= 3 && parts[0] == "github.com" && parts[1] != "" && parts[2] != ""
+}
+
+// githubRef returns the repository and tag of a module version hosted on GitHub, see IsGitHubModule.
 // A module in a subdirectory is tagged <dir>/<version>; a /vN suffix is not a directory.
 func githubRef(mod, version string) (string, string, string) {
 	parts := strings.Split(mod, "/")

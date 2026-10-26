@@ -69,6 +69,7 @@ func deltaSyncCommand() *cli.Command {
 				Int("hashes", len(result.Hashes)).
 				Int("conflicts", len(result.Conflicts)).
 				Int("skipped", len(result.Skipped)).
+				Int("changed", len(result.Changed)).
 				Msg("Delta sync done")
 
 			// Downloading a version without a recorded hash records one, so only audit what is really copied.
@@ -77,6 +78,10 @@ func deltaSyncCommand() *cli.Command {
 			}
 
 			results := audit.Run(ctx, client, result.Hashes, cliCtx.Int(flagConcurrency))
+
+			if err = ctx.Err(); err != nil {
+				return err
+			}
 
 			if err = writeAudit(out, client.BaseURL, "delta-sync-audit", results); err != nil {
 				return err

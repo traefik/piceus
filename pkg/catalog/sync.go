@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
-	"golang.org/x/mod/semver"
 )
 
 // SyncResult describes what Sync copied, or would copy in dry-run.
@@ -24,6 +23,8 @@ type SyncResult struct {
 	Conflicts []Conflict `json:"conflicts"`
 	// Skipped are plugins missing in the target but created before the dump, so removed from it on purpose.
 	Skipped []string `json:"skipped"`
+	// Changed are plugins written in the target while Sync ran, left as is: run it again.
+	Changed []string `json:"changed"`
 }
 
 // Conflict is a hash entry recorded with different values in the source and the target.
@@ -34,23 +35,25 @@ type Conflict struct {
 }
 
 type pluginDoc struct {
-	Name          string     `bson:"name"`
-	Runtime       string     `bson:"runtime"`
-	Stars         int        `bson:"stars"`
-	CreatedAt     time.Time  `bson:"createdAt"`
-	Versions      []string   `bson:"versions"`
-	LatestVersion string     `bson:"latestVersion"`
-	Hashes        []bson.Raw `bson:"hashes"`
-	raw           bson.Raw
-	fields        bson.M
+	Name            string     `bson:"name"`
+	Runtime         string     `bson:"runtime"`
+	Stars           int        `bson:"stars"`
+	CreatedAt       time.Time  `bson:"createdAt"`
+	Versions        []string   `bson:"versions"`
+	RemovedVersions []string   `bson:"removedVersions"`
+	LatestVersion   string     `bson:"latestVersion"`
+	Hashes          []bson.Raw `bson:"hashes"`
+	raw             bson.Raw
+	fields          bson.M
 }
 
 // Sync copies into dst what was added to src after the dump taken at since.
 //
 // Plugins created after since are inserted as is. For the other plugins, metadata is copied,
-// versions newer than every version of dst are appended, and hash entries missing from dst
-// are added for the versions dst lists. Nothing is removed from dst and no dst hash is changed,
-// so the fixes applied to dst survive.
+// versions missing from dst are appended unless RemoveVersions removed them from dst, and hash entries
+// missing from dst are added for the versions dst lists. Nothing is removed from dst and no dst hash
+// is changed, so the fixes applied to dst survive.
+// A plugin written in dst while Sync runs is left as is and reported in Changed.
 func Sync(ctx context.Context, src, dst *Store, since time.Time, dryRun bool) (SyncResult, error) {
 	srcDocs, err := src.plugins(ctx)
 	if err != nil {
@@ -89,9 +92,18 @@ func Sync(ctx context.Context, src, dst *Store, since time.Time, dryRun bool) (S
 		set, push, conflicts := diff(s, d)
 		result.Conflicts = append(result.Conflicts, conflicts...)
 
+		pushed := push
+
 		if !dryRun {
-			if err = dst.update(ctx, name, set, push); err != nil {
+			var changed bool
+
+			pushed, changed, err = dst.update(ctx, d, set, push)
+			if err != nil {
 				return result, err
+			}
+
+			if changed {
+				result.Changed = append(result.Changed, name)
 			}
 		}
 
@@ -99,31 +111,52 @@ func Sync(ctx context.Context, src, dst *Store, since time.Time, dryRun bool) (S
 			result.Updated = append(result.Updated, name)
 		}
 
-		result.Hashes = append(result.Hashes, hashEntries(s, push)...)
+		result.Hashes = append(result.Hashes, hashEntries(s, pushed)...)
 	}
 
 	return result, nil
 }
 
-func (s *Store) update(ctx context.Context, name string, set bson.D, push []bson.Raw) error {
-	update := bson.D{}
+// update applies set to dst only if its versions are still the ones diff read,
+// and pushes each hash entry only if dst has none for that name yet. It returns the entries pushed.
+func (s *Store) update(ctx context.Context, dst pluginDoc, set bson.D, push []bson.Raw) ([]bson.Raw, bool, error) {
 	if len(set) > 0 {
-		update = append(update, bson.E{Key: "$set", Value: set})
+		filter := bson.D{{Key: "name", Value: dst.Name}, {Key: fieldVersions, Value: dst.Versions}}
+
+		res, err := s.coll.UpdateOne(ctx, filter, bson.D{{Key: "$set", Value: set}})
+		if err != nil {
+			return nil, false, fmt.Errorf("update %s: %w", dst.Name, err)
+		}
+
+		if res.MatchedCount == 0 {
+			return nil, true, nil
+		}
 	}
 
-	if len(push) > 0 {
-		update = append(update, bson.E{Key: "$push", Value: bson.D{{Key: fieldHashes, Value: bson.D{{Key: "$each", Value: push}}}}})
+	var (
+		pushed  []bson.Raw
+		changed bool
+	)
+
+	for _, h := range push {
+		key, _ := hashFields(h)
+
+		filter := bson.D{{Key: "name", Value: dst.Name}, {Key: fieldHashes + ".name", Value: bson.D{{Key: "$ne", Value: key}}}}
+
+		res, err := s.coll.UpdateOne(ctx, filter, bson.D{{Key: "$push", Value: bson.D{{Key: fieldHashes, Value: h}}}})
+		if err != nil {
+			return pushed, changed, fmt.Errorf("update %s: %w", key, err)
+		}
+
+		if res.MatchedCount == 0 {
+			changed = true
+			continue
+		}
+
+		pushed = append(pushed, h)
 	}
 
-	if len(update) == 0 {
-		return nil
-	}
-
-	if _, err := s.coll.UpdateOne(ctx, bson.D{{Key: "name", Value: name}}, update); err != nil {
-		return fmt.Errorf("update %s: %w", name, err)
-	}
-
-	return nil
+	return pushed, changed, nil
 }
 
 func diff(src, dst pluginDoc) (bson.D, []bson.Raw, []Conflict) {
@@ -131,7 +164,7 @@ func diff(src, dst pluginDoc) (bson.D, []bson.Raw, []Conflict) {
 
 	for _, key := range sortedKeys(src.fields) {
 		switch key {
-		case "_id", "id", "name", fieldVersions, fieldLatestVersion, fieldHashes:
+		case "_id", "id", "name", fieldVersions, fieldRemovedVersions, fieldLatestVersion, fieldHashes:
 			// Identity, and what is merged below.
 			continue
 		}
@@ -141,22 +174,19 @@ func diff(src, dst pluginDoc) (bson.D, []bson.Raw, []Conflict) {
 		}
 	}
 
-	// piceus only appends new releases, so a source version older than the target's newest
-	// one was removed from the target on purpose.
-	versions := slices.Clone(dst.Versions)
-
-	for _, v := range src.Versions {
-		if !slices.Contains(versions, v) && newerThanAll(v, dst.Versions) {
-			versions = append(versions, v)
-		}
-	}
+	versions := mergeVersions(src, dst)
 
 	if len(versions) != len(dst.Versions) {
 		set = append(set, bson.E{Key: fieldVersions, Value: versions})
 	}
 
-	if src.LatestVersion != dst.LatestVersion && slices.Contains(versions, src.LatestVersion) {
-		set = append(set, bson.E{Key: fieldLatestVersion, Value: src.LatestVersion})
+	// RemoveVersions hid the plugin when it removed its last version.
+	if len(versions) == 0 {
+		set = slices.DeleteFunc(set, func(e bson.E) bool { return e.Key == fieldHidden })
+	}
+
+	if latest := latestVersion(src, versions); latest != "" && latest != dst.LatestVersion {
+		set = append(set, bson.E{Key: fieldLatestVersion, Value: latest})
 	}
 
 	recorded := map[string]string{}
@@ -189,14 +219,26 @@ func diff(src, dst pluginDoc) (bson.D, []bson.Raw, []Conflict) {
 	return set, push, conflicts
 }
 
-func newerThanAll(v string, versions []string) bool {
-	for _, other := range versions {
-		if semver.Compare(v, other) <= 0 {
-			return false
+// mergeVersions appends to the versions of dst those of src it lacks, except the ones RemoveVersions removed.
+func mergeVersions(src, dst pluginDoc) []string {
+	versions := slices.Clone(dst.Versions)
+
+	for _, v := range src.Versions {
+		if !slices.Contains(versions, v) && !slices.Contains(dst.RemovedVersions, v) {
+			versions = append(versions, v)
 		}
 	}
 
-	return true
+	return versions
+}
+
+// latestVersion is the latestVersion of src, or the newest of versions when dst removed it.
+func latestVersion(src pluginDoc, versions []string) string {
+	if slices.Contains(versions, src.LatestVersion) {
+		return src.LatestVersion
+	}
+
+	return newest(versions)
 }
 
 func (s *Store) plugins(ctx context.Context) (map[string]pluginDoc, error) {

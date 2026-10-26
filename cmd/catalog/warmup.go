@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"fmt"
+
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/piceus/pkg/audit"
 	"github.com/urfave/cli/v2"
@@ -33,6 +35,10 @@ func warmupCommand() *cli.Command {
 
 			ctx := cliCtx.Context
 
+			if cliCtx.Int(flagTop) < 0 {
+				return fmt.Errorf("--%s must not be negative", flagTop)
+			}
+
 			entries, err := store.Entries(ctx)
 			if err != nil {
 				return err
@@ -44,6 +50,10 @@ func warmupCommand() *cli.Command {
 			log.Info().Msgf("Warming up %d plugins on %s", len(selected), client.BaseURL)
 
 			results := audit.Warmup(ctx, client, selected, cliCtx.Int(flagConcurrency))
+
+			if err = ctx.Err(); err != nil {
+				return err
+			}
 
 			if err = writeJSON(cliCtx.String(flagOut), "warmup.json", results); err != nil {
 				return err

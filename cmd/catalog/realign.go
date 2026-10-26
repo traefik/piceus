@@ -22,7 +22,7 @@ func realignCommand() *cli.Command {
 		stringFlag(flagInput, "audit.json listing the mismatches to realign", "audit.json", false),
 		&cli.StringSliceFlag{
 			Name:  flagOnly,
-			Usage: "Only realign these <module>@<version>. Required for a version whose tag moved.",
+			Usage: "Only realign these <module>@<version>. Required for a version whose tag moved or could not be checked.",
 		},
 		&cli.BoolFlag{
 			Name:    flagIncludeWasm,
@@ -124,9 +124,15 @@ func skipReason(r audit.Result, only []string, includeWasm bool) string {
 		return "verdict " + r.Verdict
 	case r.IsWasm() && !includeWasm:
 		return "wasm plugin, see --" + flagIncludeWasm
-	case r.Tag != nil && r.Tag.Moved && !slices.Contains(only, r.Key()):
-		// Realigning would accept code that changed under a published version.
+	case slices.Contains(only, r.Key()):
+		return ""
+	// Realigning would accept code that changed under a published version.
+	case r.Tag != nil && r.Tag.Moved:
 		return "tag moved after publication, review the diff then pass --" + flagOnly
+	case r.Tag != nil && r.Tag.Error != "":
+		return "tag check failed (" + r.Tag.Error + "), audit again or pass --" + flagOnly
+	case r.Tag == nil && !r.IsWasm() && audit.IsGitHubModule(r.Module):
+		return "tag not checked, audit with --" + flagCheckTags + " or pass --" + flagOnly
 	default:
 		return ""
 	}

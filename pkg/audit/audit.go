@@ -101,18 +101,23 @@ func probe(ctx context.Context, c *Client, entry catalog.Entry) Result {
 
 	res.ServedHash, res.Size = dl.Hash, dl.Size
 
+	// A mismatch is known from the download alone.
+	if dl.Hash != entry.Hash {
+		res.Verdict = VerdictMismatch
+		res.ValidateStatus, _ = c.Validate(ctx, entry.Module, entry.Version, dl.Hash)
+
+		return res
+	}
+
 	res.ValidateStatus, err = c.Validate(ctx, entry.Module, entry.Version, dl.Hash)
 	if err != nil {
 		res.Verdict, res.Error = VerdictNetworkError, err.Error()
 		return res
 	}
 
-	switch {
-	case dl.Hash != entry.Hash:
-		res.Verdict = VerdictMismatch
-	case res.ValidateStatus == http.StatusOK:
+	if res.ValidateStatus == http.StatusOK {
 		res.Verdict = VerdictOK
-	default:
+	} else {
 		res.Verdict = VerdictValidateFailed
 	}
 

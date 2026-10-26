@@ -12,6 +12,9 @@ func TestSkipReason(t *testing.T) {
 	entry := catalog.Entry{Module: "github.com/a/b", Version: "v1.0.0"}
 	wasm := catalog.Entry{Module: "github.com/a/b", Version: "v1.0.0", Runtime: "wasm"}
 	moved := &audit.TagCheck{Moved: true}
+	stable := &audit.TagCheck{ProxyCommit: "a", TagCommit: "a"}
+	failed := &audit.TagCheck{Error: "proxy down"}
+	gitlab := catalog.Entry{Module: "gitlab.com/a/b", Version: "v1.0.0"}
 
 	testCases := []struct {
 		desc        string
@@ -20,7 +23,12 @@ func TestSkipReason(t *testing.T) {
 		includeWasm bool
 		skipped     bool
 	}{
-		{desc: "mismatch", result: audit.Result{Entry: entry, Verdict: audit.VerdictMismatch}},
+		{desc: "mismatch", result: audit.Result{Entry: entry, Verdict: audit.VerdictMismatch, Tag: stable}},
+		{desc: "no dependencies", result: audit.Result{Entry: entry, Verdict: audit.VerdictMismatch, Tag: &audit.TagCheck{NoDependencies: true}}},
+		{desc: "tag not checked", result: audit.Result{Entry: entry, Verdict: audit.VerdictMismatch}, skipped: true},
+		{desc: "tag not checked, named", result: audit.Result{Entry: entry, Verdict: audit.VerdictMismatch}, only: []string{entry.Key()}},
+		{desc: "tag check failed", result: audit.Result{Entry: entry, Verdict: audit.VerdictMismatch, Tag: failed}, skipped: true},
+		{desc: "not on github", result: audit.Result{Entry: gitlab, Verdict: audit.VerdictMismatch}},
 		{desc: "ok", result: audit.Result{Entry: entry, Verdict: audit.VerdictOK}, skipped: true},
 		{desc: "not downloadable", result: audit.Result{Entry: entry, Verdict: audit.VerdictDownloadError}, skipped: true},
 		{desc: "wasm", result: audit.Result{Entry: wasm, Verdict: audit.VerdictMismatch}, skipped: true},

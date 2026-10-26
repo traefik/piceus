@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"github.com/ettle/strcase"
+	"github.com/google/go-github/v57/github"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/piceus/pkg/audit"
 	"github.com/traefik/piceus/pkg/catalog"
-	"github.com/traefik/piceus/pkg/client"
 	"github.com/traefik/piceus/pkg/logger"
 	"github.com/urfave/cli/v2"
 )
@@ -78,6 +79,11 @@ func dryRunFlag() cli.Flag {
 func setup(cliCtx *cli.Context) (*catalog.Store, *audit.Client, func(), error) {
 	logger.Setup(cliCtx.String(flagLogLevel))
 
+	// Fail before hours of work rather than when writing the results.
+	if err := os.MkdirAll(cliCtx.String(flagOut), 0o750); err != nil {
+		return nil, nil, nil, fmt.Errorf("output directory: %w", err)
+	}
+
 	store, err := catalog.Open(cliCtx.String(flagMongoURI), cliCtx.String(flagMongoDatabase))
 	if err != nil {
 		return nil, nil, nil, err
@@ -94,18 +100,19 @@ func setup(cliCtx *cli.Context) (*catalog.Store, *audit.Client, func(), error) {
 	return store, c, closeStore, nil
 }
 
-func newTagChecker(ctx context.Context, goProxyURL, token string) (*audit.TagChecker, error) {
-	options := []client.Option{client.WithRetry(4, 30*time.Second)}
+func newTagChecker(goProxyURL, token string) *audit.TagChecker {
+	// Unlike pkg/client, follows redirects: a renamed repository answers 301.
+	retry := retryablehttp.NewClient()
+	retry.RetryMax = 4
+	retry.RetryWaitMin = 30 * time.Second
+	retry.Logger = nil
+
+	gh := github.NewClient(retry.StandardClient())
 	if token != "" {
-		options = append(options, client.WithToken(token))
+		gh = gh.WithAuthToken(token)
 	}
 
-	gh, err := client.New(ctx, options...)
-	if err != nil {
-		return nil, fmt.Errorf("creating github client: %w", err)
-	}
-
-	return audit.NewTagChecker(goProxyURL, gh.GithubClient()), nil
+	return audit.NewTagChecker(goProxyURL, gh)
 }
 
 func filterModule(entries []catalog.Entry, module string, limit int) []catalog.Entry {

@@ -51,6 +51,7 @@ func TestDiff(t *testing.T) {
 		{Key: "readme", Value: "same"},
 		{Key: "latestVersion", Value: "v1.2.0"},
 		{Key: "versions", Value: bson.A{"v1.1.0", "v1.2.0"}},
+		{Key: "removedVersions", Value: bson.A{"v1.0.0"}},
 		{Key: "hashes", Value: bson.A{
 			hash("github.com/a/b@v1.1.0", "fixed"),
 			hash("github.com/a/b@v1.2.0", "same"),
@@ -72,6 +73,64 @@ func TestDiff(t *testing.T) {
 	assert.Equal(t, "new", value)
 
 	assert.Equal(t, []Conflict{{Key: "github.com/a/b@v1.1.0", Source: "prod", Target: "fixed"}}, conflicts)
+}
+
+func TestDiff_removedNewest(t *testing.T) {
+	src := newDoc(t, bson.D{
+		{Key: "name", Value: "github.com/a/b"},
+		{Key: "latestVersion", Value: "v2.0.0"},
+		{Key: "versions", Value: bson.A{"v1.0.0", "v2.0.0", "v1.0.1"}},
+		{Key: "hashes", Value: bson.A{
+			hash("github.com/a/b@v1.0.0", "a"),
+			hash("github.com/a/b@v2.0.0", "b"),
+			hash("github.com/a/b@v1.0.1", "c"),
+		}},
+	})
+
+	// v2.0.0 was pruned from the target, v1.0.1 is a backport released after the dump.
+	dst := newDoc(t, bson.D{
+		{Key: "name", Value: "github.com/a/b"},
+		{Key: "latestVersion", Value: "v1.0.0"},
+		{Key: "versions", Value: bson.A{"v1.0.0"}},
+		{Key: "removedVersions", Value: bson.A{"v2.0.0"}},
+		{Key: "hashes", Value: bson.A{hash("github.com/a/b@v1.0.0", "a")}},
+	})
+
+	set, push, conflicts := diff(src, dst)
+
+	assert.Equal(t, bson.D{
+		{Key: "versions", Value: []string{"v1.0.0", "v1.0.1"}},
+		{Key: "latestVersion", Value: "v1.0.1"},
+	}, set)
+
+	require.Len(t, push, 1)
+
+	name, _ := hashFields(push[0])
+	assert.Equal(t, "github.com/a/b@v1.0.1", name)
+	assert.Empty(t, conflicts)
+}
+
+func TestDiff_keepsHiddenWhenEmpty(t *testing.T) {
+	src := newDoc(t, bson.D{
+		{Key: "name", Value: "github.com/a/b"},
+		{Key: "hidden", Value: false},
+		{Key: "latestVersion", Value: "v1.0.0"},
+		{Key: "versions", Value: bson.A{"v1.0.0"}},
+	})
+
+	dst := newDoc(t, bson.D{
+		{Key: "name", Value: "github.com/a/b"},
+		{Key: "hidden", Value: true},
+		{Key: "latestVersion", Value: "v1.0.0"},
+		{Key: "versions", Value: bson.A{}},
+		{Key: "removedVersions", Value: bson.A{"v1.0.0"}},
+	})
+
+	set, push, conflicts := diff(src, dst)
+
+	assert.Empty(t, set)
+	assert.Empty(t, push)
+	assert.Empty(t, conflicts)
 }
 
 func TestDiff_noChange(t *testing.T) {

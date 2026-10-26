@@ -41,10 +41,7 @@ func pruneCommand() *cli.Command {
 
 			ctx := cliCtx.Context
 
-			checker, err := newTagChecker(ctx, cliCtx.String(flagGoProxyURL), cliCtx.String(flagGitHubToken))
-			if err != nil {
-				return err
-			}
+			checker := newTagChecker(cliCtx.String(flagGoProxyURL), cliCtx.String(flagGitHubToken))
 
 			gone, kept, failed := confirmGone(ctx, client, checker, results)
 

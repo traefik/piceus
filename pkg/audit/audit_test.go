@@ -150,9 +150,11 @@ func TestCompare(t *testing.T) {
 		{Entry: entry("fixed"), Verdict: VerdictMismatch, ServedHash: "1"},
 		{Entry: entry("broken"), Verdict: VerdictDownloadError},
 		{Entry: entry("removed"), Verdict: VerdictOK},
+		{Entry: entry("unchecked"), Verdict: VerdictOK, ServedHash: "1"},
 	}
 
 	after := []Result{
+		{Entry: entry("unchecked"), Verdict: VerdictNetworkError},
 		{Entry: entry("same"), Verdict: VerdictOK, ServedHash: "1"},
 		{Entry: entry("regressed"), Verdict: VerdictMismatch, ServedHash: "2"},
 		{Entry: entry("bytes"), Verdict: VerdictOK, ServedHash: "2"},
@@ -173,6 +175,7 @@ func TestCompare(t *testing.T) {
 	}
 
 	assert.Equal(t, []string{"regressed@v1.0.0"}, keys(d.Regressions))
+	assert.Equal(t, []string{"unchecked@v1.0.0"}, keys(d.Unchecked))
 	assert.Equal(t, []string{"bytes@v1.0.0"}, keys(d.BytesChanged))
 	assert.Equal(t, []string{"fixed@v1.0.0"}, keys(d.Fixed))
 	assert.Equal(t, []string{"broken@v1.0.0"}, keys(d.StillBroken))

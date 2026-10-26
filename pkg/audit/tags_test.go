@@ -37,6 +37,14 @@ func TestGithubRef(t *testing.T) {
 	}
 }
 
+func TestIsGitHubModule(t *testing.T) {
+	assert.True(t, IsGitHubModule("github.com/o/r"))
+	assert.True(t, IsGitHubModule("github.com/o/r/sub/v2"))
+	assert.False(t, IsGitHubModule("github.com/o"))
+	assert.False(t, IsGitHubModule("github.com/o/"))
+	assert.False(t, IsGitHubModule("gitlab.com/o/r"))
+}
+
 func TestCheckTags(t *testing.T) {
 	proxy := http.NewServeMux()
 	proxy.HandleFunc("/github.com/o/moved/@v/v1.0.0.mod", func(rw http.ResponseWriter, _ *http.Request) {
@@ -84,7 +92,7 @@ func TestCheckTags(t *testing.T) {
 	require.NotNil(t, results[0].Tag)
 	assert.Equal(t, &TagCheck{ProxyCommit: "aaa", TagCommit: "ccc", Moved: true}, results[0].Tag)
 	assert.Equal(t, &TagCheck{ProxyCommit: "bbb", TagCommit: "bbb"}, results[1].Tag)
-	assert.Nil(t, results[2].Tag)
+	assert.Equal(t, &TagCheck{NoDependencies: true}, results[2].Tag)
 	assert.Nil(t, results[3].Tag)
 }
 

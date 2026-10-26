@@ -11,6 +11,8 @@ import (
 type Diff struct {
 	// Regressions were OK and are not anymore.
 	Regressions []Change `json:"regressions"`
+	// Unchecked were OK and hit a network error now, re-run to confirm.
+	Unchecked []Change `json:"unchecked"`
 	// BytesChanged are OK on both sides but serve different bytes.
 	BytesChanged []Change `json:"bytesChanged"`
 	// Fixed were not OK and are now.
@@ -54,6 +56,8 @@ func Compare(before, after []Result) Diff {
 		c := Change{Key: key, Before: b, After: a}
 
 		switch wasOK, isOK := b.Verdict == VerdictOK, a.Verdict == VerdictOK; {
+		case wasOK && a.Verdict == VerdictNetworkError:
+			d.Unchecked = append(d.Unchecked, c)
 		case wasOK && !isOK:
 			d.Regressions = append(d.Regressions, c)
 		case wasOK && b.ServedHash != a.ServedHash:
@@ -132,6 +136,7 @@ func WriteDiff(w io.Writer, d Diff) {
 	p.f("# Plugin catalog audit diff\n\n")
 	p.f("| Change | Entries |\n|---|---:|\n")
 	p.f("| Regressions | %d |\n", len(d.Regressions))
+	p.f("| Unchecked, network error | %d |\n", len(d.Unchecked))
 	p.f("| OK, bytes changed | %d |\n", len(d.BytesChanged))
 	p.f("| Fixed | %d |\n", len(d.Fixed))
 	p.f("| Still broken | %d |\n", len(d.StillBroken))
@@ -139,6 +144,7 @@ func WriteDiff(w io.Writer, d Diff) {
 	p.f("| Added | %d |\n\n", len(d.Added))
 
 	p.changeTable("Regressions", d.Regressions)
+	p.changeTable("Unchecked, network error", d.Unchecked)
 	p.changeTable("OK, bytes changed", d.BytesChanged)
 	p.changeTable("Fixed", d.Fixed)
 	p.changeTable("Still broken", d.StillBroken)

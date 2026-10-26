@@ -23,6 +23,9 @@ const (
 	fieldHashes        = "hashes"
 	fieldVersions      = "versions"
 	fieldLatestVersion = "latestVersion"
+	fieldHidden        = "hidden"
+	// fieldRemovedVersions lists the versions RemoveVersions removed, so Sync does not bring them back.
+	fieldRemovedVersions = "removedVersions"
 )
 
 // Entry is one archive hash recorded by plugin-service, with the plugin it belongs to.
@@ -90,7 +93,7 @@ type entryDoc struct {
 // Entries returns every recorded hash, sorted by module then version.
 func (s *Store) Entries(ctx context.Context) ([]Entry, error) {
 	projection := bson.D{}
-	for _, field := range []string{"name", "runtime", "disabled", "hidden", "stars", fieldVersions, fieldHashes} {
+	for _, field := range []string{"name", "runtime", "disabled", fieldHidden, "stars", fieldVersions, fieldHashes} {
 		projection = append(projection, bson.E{Key: field, Value: 1})
 	}
 
@@ -179,6 +182,7 @@ type Removal struct {
 
 // RemoveVersions removes versions, given as version → recorded hash, from the versions and hashes of module.
 // latestVersion moves to the newest version left, and the plugin is hidden when none is left.
+// The removed versions are recorded in removedVersions for Sync.
 // Nothing is written if a recorded hash or the version list changed in the meantime, or in dry-run.
 func (s *Store) RemoveVersions(ctx context.Context, module string, versions map[string]string, dryRun bool) (Removal, error) {
 	var doc struct {
@@ -230,8 +234,9 @@ func (s *Store) RemoveVersions(ctx context.Context, module string, versions map[
 		{Key: "$set", Value: bson.D{
 			{Key: fieldVersions, Value: append([]string{}, removal.Versions...)},
 			{Key: fieldLatestVersion, Value: removal.LatestVersion},
-			{Key: "hidden", Value: removal.Hidden},
+			{Key: fieldHidden, Value: removal.Hidden},
 		}},
+		{Key: "$addToSet", Value: bson.D{{Key: fieldRemovedVersions, Value: bson.D{{Key: "$each", Value: sortedKeys(versions)}}}}},
 		{Key: "$pull", Value: bson.D{{Key: fieldHashes, Value: bson.D{{Key: "name", Value: bson.D{{Key: "$in", Value: names}}}}}}},
 	}
 

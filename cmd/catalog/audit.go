@@ -58,16 +58,21 @@ func auditCommand() *cli.Command {
 
 			entries = filterModule(entries, cliCtx.String(flagModule), cliCtx.Int(flagLimit))
 
+			// Read before writing audit.json, which may be the same file.
+			var previous []audit.Result
+
+			if path := cliCtx.String(flagCompare); path != "" {
+				if previous, err = readResults(path); err != nil {
+					return err
+				}
+			}
+
 			log.Info().Msgf("Auditing %d entries against %s", len(entries), client.BaseURL)
 
 			results := audit.Run(ctx, client, entries, cliCtx.Int(flagConcurrency))
 
 			if cliCtx.Bool(flagCheckTags) {
-				checker, errT := newTagChecker(ctx, cliCtx.String(flagGoProxyURL), cliCtx.String(flagGitHubToken))
-				if errT != nil {
-					return errT
-				}
-
+				checker := newTagChecker(cliCtx.String(flagGoProxyURL), cliCtx.String(flagGitHubToken))
 				audit.CheckTags(ctx, checker, results, cliCtx.Int(flagConcurrency))
 			}
 
@@ -84,7 +89,7 @@ func auditCommand() *cli.Command {
 			log.Info().Interface("verdicts", summary(results)).Msgf("Wrote %s", filepath.Join(out, "audit.md"))
 
 			if path := cliCtx.String(flagCompare); path != "" {
-				return writeCompare(out, path, results)
+				return writeCompare(out, path, previous, results)
 			}
 
 			return nil
@@ -92,15 +97,10 @@ func auditCommand() *cli.Command {
 	}
 }
 
-func writeCompare(out, previousPath string, results []audit.Result) error {
-	previous, err := readResults(previousPath)
-	if err != nil {
-		return err
-	}
-
+func writeCompare(out, previousPath string, previous, results []audit.Result) error {
 	d := audit.Compare(previous, results)
 
-	if err = writeJSON(out, "diff.json", d); err != nil {
+	if err := writeJSON(out, "diff.json", d); err != nil {
 		return err
 	}
 
@@ -108,7 +108,7 @@ func writeCompare(out, previousPath string, results []audit.Result) error {
 
 	audit.WriteDiff(&md, d)
 
-	if err = os.WriteFile(filepath.Join(out, "diff.md"), []byte(md.String()), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(out, "diff.md"), []byte(md.String()), 0o600); err != nil {
 		return err
 	}
 
