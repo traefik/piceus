@@ -104,7 +104,7 @@ func TestGone(t *testing.T) {
 
 	// Tag deleted, pinned commit still there: plugin-service serves the pinned commit.
 	// Repository deleted: the pinned commit is gone too.
-	for _, name := range []string{"tagdeleted", "repodeleted", "nopin", "ghdown"} {
+	for _, name := range []string{"tagdeleted", "repodeleted", "nopin", "ghdown", "infodown"} {
 		proxy.HandleFunc("/github.com/o/"+name+"/@v/v1.0.0.mod", func(rw http.ResponseWriter, _ *http.Request) {
 			_, _ = fmt.Fprint(rw, withDeps)
 		})
@@ -115,6 +115,10 @@ func TestGone(t *testing.T) {
 			_, _ = fmt.Fprint(rw, `{"Version":"v1.0.0","Origin":{"Hash":"pinned"}}`)
 		})
 	}
+
+	proxy.HandleFunc("/github.com/o/infodown/@v/v1.0.0.info", func(rw http.ResponseWriter, _ *http.Request) {
+		rw.WriteHeader(http.StatusBadGateway)
+	})
 
 	proxySrv := httptest.NewServer(proxy)
 	t.Cleanup(proxySrv.Close)
@@ -127,6 +131,9 @@ func TestGone(t *testing.T) {
 		rw.WriteHeader(http.StatusNotFound)
 	})
 	gh.HandleFunc("/repos/o/nopin/commits/v1.0.0", func(rw http.ResponseWriter, _ *http.Request) {
+		rw.WriteHeader(http.StatusUnprocessableEntity)
+	})
+	gh.HandleFunc("/repos/o/infodown/commits/v1.0.0", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.WriteHeader(http.StatusUnprocessableEntity)
 	})
 	gh.HandleFunc("/repos/o/ghdown/commits/pinned", func(rw http.ResponseWriter, _ *http.Request) {
@@ -157,6 +164,8 @@ func TestGone(t *testing.T) {
 		{name: "repodeleted", gone: true},
 		{name: "nopin", gone: true},
 		{name: "ghdown", wantErr: true},
+		// No answer on the pinned commit: the tag being gone proves nothing.
+		{name: "infodown", wantErr: true},
 		{name: "wasm", runtime: "wasm", gone: true},
 	}
 

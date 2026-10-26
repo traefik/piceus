@@ -126,41 +126,41 @@ func (s *Store) update(ctx context.Context, name string, set bson.D, push []bson
 	return nil
 }
 
-func diff(s, d pluginDoc) (bson.D, []bson.Raw, []Conflict) {
+func diff(src, dst pluginDoc) (bson.D, []bson.Raw, []Conflict) {
 	set := bson.D{}
 
-	for _, key := range sortedKeys(s.fields) {
+	for _, key := range sortedKeys(src.fields) {
 		switch key {
 		case "_id", "id", "name", fieldVersions, fieldLatestVersion, fieldHashes:
 			// Identity, and what is merged below.
 			continue
 		}
 
-		if !reflect.DeepEqual(s.fields[key], d.fields[key]) {
-			set = append(set, bson.E{Key: key, Value: s.fields[key]})
+		if !reflect.DeepEqual(src.fields[key], dst.fields[key]) {
+			set = append(set, bson.E{Key: key, Value: src.fields[key]})
 		}
 	}
 
 	// piceus only appends new releases, so a source version older than the target's newest
 	// one was removed from the target on purpose.
-	versions := slices.Clone(d.Versions)
+	versions := slices.Clone(dst.Versions)
 
-	for _, v := range s.Versions {
-		if !slices.Contains(versions, v) && newerThanAll(v, d.Versions) {
+	for _, v := range src.Versions {
+		if !slices.Contains(versions, v) && newerThanAll(v, dst.Versions) {
 			versions = append(versions, v)
 		}
 	}
 
-	if len(versions) != len(d.Versions) {
+	if len(versions) != len(dst.Versions) {
 		set = append(set, bson.E{Key: fieldVersions, Value: versions})
 	}
 
-	if s.LatestVersion != d.LatestVersion && slices.Contains(versions, s.LatestVersion) {
-		set = append(set, bson.E{Key: fieldLatestVersion, Value: s.LatestVersion})
+	if src.LatestVersion != dst.LatestVersion && slices.Contains(versions, src.LatestVersion) {
+		set = append(set, bson.E{Key: fieldLatestVersion, Value: src.LatestVersion})
 	}
 
 	recorded := map[string]string{}
-	for _, h := range d.Hashes {
+	for _, h := range dst.Hashes {
 		name, hash := hashFields(h)
 		recorded[name] = hash
 	}
@@ -170,7 +170,7 @@ func diff(s, d pluginDoc) (bson.D, []bson.Raw, []Conflict) {
 		conflicts []Conflict
 	)
 
-	for _, h := range s.Hashes {
+	for _, h := range src.Hashes {
 		name, hash := hashFields(h)
 
 		if got, ok := recorded[name]; ok {
@@ -181,7 +181,7 @@ func diff(s, d pluginDoc) (bson.D, []bson.Raw, []Conflict) {
 			continue
 		}
 
-		if slices.Contains(versions, strings.TrimPrefix(name, s.Name+"@")) {
+		if slices.Contains(versions, strings.TrimPrefix(name, src.Name+"@")) {
 			push = append(push, h)
 		}
 	}

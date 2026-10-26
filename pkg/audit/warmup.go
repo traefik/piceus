@@ -65,25 +65,29 @@ func Warmup(ctx context.Context, c *Client, entries []catalog.Entry, concurrency
 	results := make([]Result, len(entries))
 
 	forEach(ctx, len(entries), concurrency, func(i int) {
-		res := Result{Entry: entries[i]}
-
-		dl, err := c.Download(ctx, entries[i].Module, entries[i].Version)
-
-		res.DownloadStatus, res.CacheStatus, res.ServedHash, res.Size = dl.Status, dl.CacheStatus, dl.Hash, dl.Size
-
-		switch {
-		case err != nil && dl.Status != 0:
-			res.Verdict, res.Error = VerdictDownloadError, err.Error()
-		case err != nil:
-			res.Verdict, res.Error = VerdictNetworkError, err.Error()
-		case dl.Hash != entries[i].Hash:
-			res.Verdict = VerdictMismatch
-		default:
-			res.Verdict = VerdictOK
-		}
-
-		results[i] = res
+		results[i] = warmupOne(ctx, c, entries[i])
 	})
 
 	return results
+}
+
+func warmupOne(ctx context.Context, c *Client, entry catalog.Entry) Result {
+	res := Result{Entry: entry}
+
+	dl, err := c.Download(ctx, entry.Module, entry.Version)
+
+	res.DownloadStatus, res.CacheStatus, res.ServedHash, res.Size = dl.Status, dl.CacheStatus, dl.Hash, dl.Size
+
+	switch {
+	case err != nil && dl.Status != 0:
+		res.Verdict, res.Error = VerdictDownloadError, err.Error()
+	case err != nil:
+		res.Verdict, res.Error = VerdictNetworkError, err.Error()
+	case dl.Hash != entry.Hash:
+		res.Verdict = VerdictMismatch
+	default:
+		res.Verdict = VerdictOK
+	}
+
+	return res
 }
