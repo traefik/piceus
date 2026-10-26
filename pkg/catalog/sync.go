@@ -131,7 +131,7 @@ func diff(s, d pluginDoc) (bson.D, []bson.Raw, []Conflict) {
 
 	for _, key := range sortedKeys(s.fields) {
 		switch key {
-		case "_id", "id", "name", fieldVersions, "latestVersion", fieldHashes:
+		case "_id", "id", "name", fieldVersions, fieldLatestVersion, fieldHashes:
 			// Identity, and what is merged below.
 			continue
 		}
@@ -156,7 +156,7 @@ func diff(s, d pluginDoc) (bson.D, []bson.Raw, []Conflict) {
 	}
 
 	if s.LatestVersion != d.LatestVersion && slices.Contains(versions, s.LatestVersion) {
-		set = append(set, bson.E{Key: "latestVersion", Value: s.LatestVersion})
+		set = append(set, bson.E{Key: fieldLatestVersion, Value: s.LatestVersion})
 	}
 
 	recorded := map[string]string{}

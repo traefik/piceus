@@ -35,7 +35,7 @@ const (
 
 // Commands returns the catalog commands.
 func Commands() []*cli.Command {
-	return []*cli.Command{auditCommand(), realignCommand(), deltaSyncCommand(), warmupCommand()}
+	return []*cli.Command{auditCommand(), realignCommand(), pruneCommand(), deltaSyncCommand(), warmupCommand()}
 }
 
 func stringFlag(name, usage, value string, required bool) *cli.StringFlag {

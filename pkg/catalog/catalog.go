@@ -13,14 +13,16 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
+	"golang.org/x/mod/semver"
 )
 
 // Same collection name as plugin-service.
 const collName = "plugin"
 
 const (
-	fieldHashes   = "hashes"
-	fieldVersions = "versions"
+	fieldHashes        = "hashes"
+	fieldVersions      = "versions"
+	fieldLatestVersion = "latestVersion"
 )
 
 // Entry is one archive hash recorded by plugin-service, with the plugin it belongs to.
@@ -137,7 +139,7 @@ func (s *Store) Entries(ctx context.Context) ([]Entry, error) {
 	return entries, nil
 }
 
-// ErrHashChanged is returned when the recorded hash is no longer the expected one.
+// ErrHashChanged is returned when the catalog changed since it was read.
 var ErrHashChanged = errors.New("the recorded hash is not the expected one")
 
 // SetHash replaces the recorded hash of module@version, only if it still holds oldHash.
@@ -166,4 +168,93 @@ func (s *Store) SetHash(ctx context.Context, module, version, oldHash, newHash s
 	}
 
 	return nil
+}
+
+// Removal is the outcome of RemoveVersions.
+type Removal struct {
+	Versions      []string `json:"versions"`
+	LatestVersion string   `json:"latestVersion"`
+	Hidden        bool     `json:"hidden"`
+}
+
+// RemoveVersions removes versions, given as version → recorded hash, from the versions and hashes of module.
+// latestVersion moves to the newest version left, and the plugin is hidden when none is left.
+// Nothing is written if a recorded hash or the version list changed in the meantime, or in dry-run.
+func (s *Store) RemoveVersions(ctx context.Context, module string, versions map[string]string, dryRun bool) (Removal, error) {
+	var doc struct {
+		Versions      []string `bson:"versions"`
+		LatestVersion string   `bson:"latestVersion"`
+		Hidden        bool     `bson:"hidden"`
+	}
+
+	if err := s.coll.FindOne(ctx, bson.D{{Key: "name", Value: module}}).Decode(&doc); err != nil {
+		return Removal{}, fmt.Errorf("find %s: %w", module, err)
+	}
+
+	removal := Removal{LatestVersion: doc.LatestVersion, Hidden: doc.Hidden}
+
+	var guards, names bson.A
+
+	for _, version := range sortedKeys(versions) {
+		key := module + "@" + version
+		names = append(names, key)
+		guards = append(guards, bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "name", Value: key}, {Key: "hash", Value: versions[version]}}}})
+	}
+
+	for _, v := range doc.Versions {
+		if _, ok := versions[v]; !ok {
+			removal.Versions = append(removal.Versions, v)
+		}
+	}
+
+	if !slices.Contains(removal.Versions, removal.LatestVersion) {
+		removal.LatestVersion = newest(removal.Versions)
+	}
+
+	if len(removal.Versions) == 0 {
+		removal.LatestVersion = doc.LatestVersion
+		removal.Hidden = true
+	}
+
+	if dryRun {
+		return removal, nil
+	}
+
+	filter := bson.D{
+		{Key: "name", Value: module},
+		{Key: fieldVersions, Value: doc.Versions},
+		{Key: fieldHashes, Value: bson.D{{Key: "$all", Value: guards}}},
+	}
+
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: fieldVersions, Value: append([]string{}, removal.Versions...)},
+			{Key: fieldLatestVersion, Value: removal.LatestVersion},
+			{Key: "hidden", Value: removal.Hidden},
+		}},
+		{Key: "$pull", Value: bson.D{{Key: fieldHashes, Value: bson.D{{Key: "name", Value: bson.D{{Key: "$in", Value: names}}}}}}},
+	}
+
+	res, err := s.coll.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return removal, fmt.Errorf("update %s: %w", module, err)
+	}
+
+	if res.MatchedCount == 0 {
+		return removal, fmt.Errorf("%s: %w", module, ErrHashChanged)
+	}
+
+	return removal, nil
+}
+
+func newest(versions []string) string {
+	var latest string
+
+	for _, v := range versions {
+		if latest == "" || semver.Compare(v, latest) > 0 {
+			latest = v
+		}
+	}
+
+	return latest
 }

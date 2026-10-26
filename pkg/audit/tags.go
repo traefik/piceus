@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v57/github"
+	"github.com/traefik/piceus/pkg/catalog"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
@@ -127,6 +128,53 @@ func (t *TagChecker) ProxyCommit(ctx context.Context, mod, version string) (stri
 	return info.Origin.Hash, nil
 }
 
+// Gone reports whether module@version can no longer be fetched upstream, whatever plugin-service answers:
+// the Go module proxy has no go.mod for it, or the GitHub ref plugin-service downloads it from does not exist.
+// That ref is the commit pinned by the Go module proxy, the tag when there is none or for wasm plugins.
+func (t *TagChecker) Gone(ctx context.Context, entry catalog.Entry) (bool, error) {
+	var pinned string
+
+	if !entry.IsWasm() {
+		deps, err := t.HasDependencies(ctx, entry.Module, entry.Version)
+
+		var pErr *proxyError
+
+		switch {
+		case errors.As(err, &pErr) && (pErr.status == http.StatusNotFound || pErr.status == http.StatusGone):
+			// What the proxy answers for a version it cannot serve.
+			return true, nil
+		case err != nil:
+			return false, err
+		case !deps:
+			// Served from the Go module proxy, which still has it.
+			return false, nil
+		}
+
+		pinned, _ = t.ProxyCommit(ctx, entry.Module, entry.Version)
+	}
+
+	if !strings.HasPrefix(entry.Module, "github.com/") {
+		return false, nil
+	}
+
+	owner, repo, ref := githubRef(entry.Module, entry.Version)
+	if pinned != "" {
+		ref = pinned
+	}
+
+	_, resp, err := t.GitHub.Repositories.GetCommitSHA1(ctx, owner, repo, ref, "")
+	if err == nil {
+		return false, nil
+	}
+
+	// 404: repository deleted, 422: no such ref. A renamed repository answers a redirect, it is not gone.
+	if resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnprocessableEntity) {
+		return true, nil
+	}
+
+	return false, err
+}
+
 func (t *TagChecker) proxyGet(ctx context.Context, mod, version, ext string) ([]byte, error) {
 	escMod, err := module.EscapePath(mod)
 	if err != nil {
@@ -151,10 +199,19 @@ func (t *TagChecker) proxyGet(ctx context.Context, mod, version, ext string) ([]
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("go proxy %s returned %d", ext, resp.StatusCode)
+		return nil, &proxyError{ext: ext, status: resp.StatusCode}
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+type proxyError struct {
+	ext    string
+	status int
+}
+
+func (e *proxyError) Error() string {
+	return fmt.Sprintf("go proxy %s returned %d", e.ext, e.status)
 }
 
 // githubRef returns the repository and tag of a module version hosted on GitHub.
