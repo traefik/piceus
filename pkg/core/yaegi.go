@@ -14,7 +14,6 @@ import (
 	"github.com/google/go-github/v57/github"
 	"github.com/mitchellh/mapstructure"
 	"github.com/traefik/yaegi/interp"
-	"github.com/traefik/yaegi/stdlib"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
@@ -55,7 +54,7 @@ func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Rep
 	var gop string
 	gop, err = os.MkdirTemp("", "traefik-plugin-gop")
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to create temp GOPATH: %w", err)
+		return "", nil, fmt.Errorf("%w: failed to create temp GOPATH: %w", errEvaluatorFailure, err)
 	}
 
 	defer func() { _ = os.RemoveAll(gop) }()
@@ -67,7 +66,7 @@ func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Rep
 	}
 
 	// Check Yaegi interface
-	err = s.yaegiCheck(manifest, gop, pluginName)
+	err = s.yaegiCheck(ctx, manifest, gop, pluginName)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to run the plugin with Yaegi: %w", err)
 	}
@@ -75,16 +74,8 @@ func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Rep
 	return pluginName, versions, nil
 }
 
-func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) (err error) {
-	defer func() {
-		if rec := recover(); rec != nil {
-			err = fmt.Errorf("panic from yaegi: %v", rec)
-		}
-	}()
-
-	tearDown := dropSensitiveEnvVars()
-	defer tearDown()
-
+// yaegiCheck runs the plugin code in the sandboxed evaluator process.
+func (s *Scrapper) yaegiCheck(ctx context.Context, manifest Manifest, goPath, moduleName string) error {
 	switch manifest.Type {
 	case typeMiddleware:
 		if manifest.UseUnsafe {
@@ -92,7 +83,13 @@ func (s *Scrapper) yaegiCheck(manifest Manifest, goPath, moduleName string) (err
 			return nil
 		}
 		_, skip := s.skipNewCall[moduleName]
-		return yaegiMiddlewareCheck(goPath, manifest, skip)
+
+		return s.evaluator.Evaluate(ctx, evaluationRequest{
+			Manifest: manifest,
+			WorkDir:  goPath,
+			GoPath:   goPath,
+			SkipNew:  skip,
+		})
 
 	case typeProvider:
 		// TODO yaegi check for provider
@@ -135,7 +132,7 @@ func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Reposit
 	return mod, nil
 }
 
-func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error {
+func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool, symbols interp.Exports) error {
 	middlewareName := "test"
 
 	next := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {})
@@ -145,7 +142,7 @@ func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool) error 
 	defer cancel()
 
 	i := interp.New(interp.Options{GoPath: goPath})
-	if err := i.Use(stdlib.Symbols); err != nil {
+	if err := i.Use(symbols); err != nil {
 		return fmt.Errorf("load of stdlib symbols: %w", err)
 	}
 
@@ -308,31 +305,6 @@ func checkFunctionNewSignature(fnNew, vConfig reflect.Value) error {
 	}
 
 	return nil
-}
-
-func dropSensitiveEnvVars() func() {
-	bckEnviron := make(map[string]string)
-
-	for _, ev := range os.Environ() {
-		pair := strings.SplitN(ev, "=", 2)
-
-		key := strings.ToLower(pair[0])
-		if strings.Contains(key, "token") ||
-			strings.Contains(key, "password") ||
-			strings.Contains(key, "username") ||
-			strings.Contains(key, "_url") ||
-			strings.Contains(key, "_host") ||
-			strings.Contains(key, "_port") {
-			bckEnviron[pair[0]] = pair[1]
-			_ = os.Unsetenv(pair[0])
-		}
-	}
-
-	return func() {
-		for k, v := range bckEnviron {
-			_ = os.Setenv(k, v)
-		}
-	}
 }
 
 func safeFnCall(fn reflect.Value, args []reflect.Value) (result []reflect.Value, errCall error) {

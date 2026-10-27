@@ -1,0 +1,7 @@
+displayName: Plugin With StartProcess
+type: middleware
+
+import: github.com/traefik/pluginteststartprocess
+basePkg: plugin
+
+summary: Plugin that starts a shell with os.StartProcess.

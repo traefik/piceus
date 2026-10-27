@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path"
 	"path/filepath"
 	"time"
@@ -22,6 +23,8 @@ import (
 const wasmFile = "plugin.wasm"
 
 const wasmCheckTimeout = 60 * time.Second
+
+const maxWasmFileSize = 256 << 20
 
 func (s *Scrapper) verifyWASMPlugin(ctx context.Context, repository *github.Repository, latestVersion string, manifest Manifest) (string, []string, error) {
 	pluginName := path.Join("github.com", repository.GetFullName())
@@ -124,9 +127,7 @@ func (s *Scrapper) verifyZip(ctx context.Context, owner, repo string, assetID in
 
 	switch manifest.Type {
 	case typeMiddleware:
-		err = runWithTimeout(wasmCheckTimeout, func() error {
-			return checkWasmMiddleware(ctx, wasmPluginFile, manifest)
-		})
+		err = s.wasmCheck(ctx, wasmPluginFile, manifest)
 		if err != nil {
 			return fmt.Errorf("failed to check wasm middleware: %w", err)
 		}
@@ -142,17 +143,52 @@ func (s *Scrapper) verifyZip(ctx context.Context, owner, repo string, assetID in
 	return nil
 }
 
-func checkWasmMiddleware(ctx context.Context, file *zip.File, manifest Manifest) error {
+// wasmCheck extracts the plugin binary and runs it in the sandboxed evaluator process.
+func (s *Scrapper) wasmCheck(ctx context.Context, file *zip.File, manifest Manifest) error {
+	workDir, err := os.MkdirTemp("", "traefik-plugin-wasm")
+	if err != nil {
+		return fmt.Errorf("%w: creating temp directory: %w", errEvaluatorFailure, err)
+	}
+	defer func() { _ = os.RemoveAll(workDir) }()
+
+	wasmFilePath := filepath.Join(workDir, wasmFile)
+	if err = extractZipFile(file, wasmFilePath); err != nil {
+		return err
+	}
+
+	return s.evaluator.Evaluate(ctx, evaluationRequest{
+		Manifest: manifest,
+		WorkDir:  workDir,
+		WasmFile: wasmFilePath,
+	})
+}
+
+func extractZipFile(file *zip.File, dest string) error {
 	readCloser, err := file.Open()
 	if err != nil {
-		return fmt.Errorf("failed to open wasm file: %w", err)
+		return fmt.Errorf("opening wasm file: %w", err)
 	}
+	defer func() { _ = readCloser.Close() }()
 
-	pluginBytes, err := io.ReadAll(readCloser)
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
-		return fmt.Errorf("failed to read wasm file: %w", err)
+		return fmt.Errorf("%w: creating wasm file: %w", errEvaluatorFailure, err)
+	}
+	defer func() { _ = out.Close() }()
+
+	n, err := io.Copy(out, io.LimitReader(readCloser, maxWasmFileSize+1))
+	if err != nil {
+		return fmt.Errorf("extracting wasm file: %w", err)
 	}
 
+	if n > maxWasmFileSize {
+		return fmt.Errorf("wasm file is too large (limit: %d bytes)", maxWasmFileSize)
+	}
+
+	return nil
+}
+
+func checkWasmMiddleware(ctx context.Context, pluginBytes []byte, manifest Manifest) error {
 	b, err := json.Marshal(manifest.TestData)
 	if err != nil {
 		return fmt.Errorf("failed to marshal test data: %w", err)
