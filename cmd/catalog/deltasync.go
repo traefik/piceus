@@ -70,6 +70,7 @@ func deltaSyncCommand() *cli.Command {
 				Int("conflicts", len(result.Conflicts)).
 				Int("skipped", len(result.Skipped)).
 				Int("changed", len(result.Changed)).
+				Int("missingInSource", len(result.MissingInSource)).
 				Msg("Delta sync done")
 
 			// Downloading a version without a recorded hash records one, so only audit what is really copied.

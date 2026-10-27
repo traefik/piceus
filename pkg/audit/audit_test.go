@@ -138,6 +138,66 @@ func TestDownload_basicAuth(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, dl.Status)
 }
 
+func TestDownloadUncached(t *testing.T) {
+	var queries []string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		queries = append(queries, req.URL.Query().Get("audit"))
+		_, _ = rw.Write([]byte("archive"))
+	}))
+	t.Cleanup(srv.Close)
+
+	c := NewClient(srv.URL, "", "")
+
+	_, err := c.Download(t.Context(), "github.com/a/b", "v1.0.0")
+	require.NoError(t, err)
+
+	dl, err := c.DownloadUncached(t.Context(), "github.com/a/b", "v1.0.0")
+	require.NoError(t, err)
+	assert.Equal(t, sum("archive"), dl.Hash)
+
+	require.Len(t, queries, 2)
+	assert.Empty(t, queries[0])
+	assert.NotEmpty(t, queries[1])
+}
+
+func TestValidate_serverError(t *testing.T) {
+	var calls atomic.Int64
+
+	statuses := []int{http.StatusBadGateway, http.StatusOK}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		// An empty archive.
+		if strings.HasPrefix(req.URL.Path, "/public/download/") {
+			return
+		}
+
+		n := calls.Add(1)
+
+		if strings.Contains(req.URL.Path, "/flaky/") {
+			rw.WriteHeader(statuses[min(int(n)-1, len(statuses)-1)])
+			return
+		}
+
+		rw.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(srv.Close)
+
+	c := NewClient(srv.URL, "", "")
+	c.RetryWait = time.Millisecond
+
+	status, err := c.Validate(t.Context(), "github.com/a/flaky", "v1.0.0", "h")
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, status)
+	assert.Equal(t, int64(2), calls.Load())
+
+	calls.Store(0)
+
+	// Still failing after the retries: an error, so the entry is not counted as rejected.
+	res := probe(t.Context(), c, catalog.Entry{Module: "github.com/a/down", Version: "v1.0.0", Hash: sum("")})
+	assert.Equal(t, VerdictNetworkError, res.Verdict)
+}
+
 func TestCompare(t *testing.T) {
 	entry := func(name string) catalog.Entry {
 		return catalog.Entry{Module: "github.com/a/" + name, Version: "v1.0.0"}
@@ -149,7 +209,8 @@ func TestCompare(t *testing.T) {
 		{Entry: entry("bytes"), Verdict: VerdictOK, ServedHash: "1"},
 		{Entry: entry("fixed"), Verdict: VerdictMismatch, ServedHash: "1"},
 		{Entry: entry("broken"), Verdict: VerdictDownloadError},
-		{Entry: entry("removed"), Verdict: VerdictOK},
+		{Entry: entry("missing"), Verdict: VerdictOK},
+		{Entry: entry("pruned"), Verdict: VerdictDownloadError},
 		{Entry: entry("unchecked"), Verdict: VerdictOK, ServedHash: "1"},
 	}
 
@@ -174,11 +235,12 @@ func TestCompare(t *testing.T) {
 		return k
 	}
 
-	assert.Equal(t, []string{"regressed@v1.0.0"}, keys(d.Regressions))
+	assert.Equal(t, []string{"regressed@v1.0.0", "missing@v1.0.0"}, keys(d.Regressions))
+	assert.Equal(t, verdictMissing, d.Regressions[1].After.Verdict)
 	assert.Equal(t, []string{"unchecked@v1.0.0"}, keys(d.Unchecked))
 	assert.Equal(t, []string{"bytes@v1.0.0"}, keys(d.BytesChanged))
 	assert.Equal(t, []string{"fixed@v1.0.0"}, keys(d.Fixed))
 	assert.Equal(t, []string{"broken@v1.0.0"}, keys(d.StillBroken))
-	assert.Equal(t, []string{"github.com/a/removed@v1.0.0"}, d.Removed)
+	assert.Equal(t, []string{"github.com/a/pruned@v1.0.0"}, d.Removed)
 	assert.Equal(t, []string{"github.com/a/added@v1.0.0"}, d.Added)
 }

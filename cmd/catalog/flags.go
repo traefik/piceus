@@ -54,7 +54,7 @@ func commonFlags() []cli.Flag {
 		stringFlag(flagLogLevel, "Log level", "info", false),
 		stringFlag(flagMongoURI, "MongoDB URI of the plugin catalog", "", true),
 		stringFlag(flagMongoDatabase, "MongoDB database of the plugin catalog", "plugin", false),
-		stringFlag(flagPluginBaseURL, "Public URL of the plugin service serving this catalog", "https://plugins.traefik.io", false),
+		stringFlag(flagPluginBaseURL, "Public URL of the plugin service serving this catalog", "", true),
 		stringFlag(flagBasicAuthUser, "Basic auth user for the plugin service", "", false),
 		stringFlag(flagBasicAuthPassword, "Basic auth password for the plugin service", "", false),
 		stringFlag(flagOut, "Output directory", ".", false),

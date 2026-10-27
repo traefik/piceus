@@ -15,7 +15,7 @@ import (
 type SyncResult struct {
 	// Inserted are the plugins created in the source after the dump.
 	Inserted []string `json:"inserted"`
-	// Updated are the plugins whose metadata or versions changed in the source.
+	// Updated are the plugins whose metadata, versions or hashes changed in the source.
 	Updated []string `json:"updated"`
 	// Hashes are the hash entries copied to the target.
 	Hashes []Entry `json:"hashes"`
@@ -25,6 +25,9 @@ type SyncResult struct {
 	Skipped []string `json:"skipped"`
 	// Changed are plugins written in the target while Sync ran, left as is: run it again.
 	Changed []string `json:"changed"`
+	// MissingInSource are plugins of the target the source does not have, deleted after the dump or added to the target.
+	// They are left as is: review them by hand.
+	MissingInSource []string `json:"missingInSource"`
 }
 
 // Conflict is a hash entry recorded with different values in the source and the target.
@@ -54,6 +57,7 @@ type pluginDoc struct {
 // missing from dst are added for the versions dst lists. Nothing is removed from dst and no dst hash
 // is changed, so the fixes applied to dst survive.
 // A plugin written in dst while Sync runs is left as is and reported in Changed.
+// Plugins of dst that src lacks are only reported, in MissingInSource.
 func Sync(ctx context.Context, src, dst *Store, since time.Time, dryRun bool) (SyncResult, error) {
 	srcDocs, err := src.plugins(ctx)
 	if err != nil {
@@ -107,11 +111,17 @@ func Sync(ctx context.Context, src, dst *Store, since time.Time, dryRun bool) (S
 			}
 		}
 
-		if len(set) > 0 {
+		if len(set) > 0 || len(pushed) > 0 {
 			result.Updated = append(result.Updated, name)
 		}
 
 		result.Hashes = append(result.Hashes, hashEntries(s, pushed)...)
+	}
+
+	for _, name := range sortedKeys(dstDocs) {
+		if _, ok := srcDocs[name]; !ok {
+			result.MissingInSource = append(result.MissingInSource, name)
+		}
 	}
 
 	return result, nil

@@ -9,7 +9,7 @@ import (
 
 // Diff compares two audits of the same catalog, keyed by module@version.
 type Diff struct {
-	// Regressions were OK and are not anymore.
+	// Regressions were OK and are not anymore, or are missing now.
 	Regressions []Change `json:"regressions"`
 	// Unchecked were OK and hit a network error now, re-run to confirm.
 	Unchecked []Change `json:"unchecked"`
@@ -19,13 +19,16 @@ type Diff struct {
 	Fixed []Change `json:"fixed"`
 	// StillBroken are not OK on either side.
 	StillBroken []Change `json:"stillBroken"`
-	// Removed were audited before and are missing now.
+	// Removed were audited before, not OK, and are missing now.
 	Removed []string `json:"removed"`
 	// Added are missing from the previous audit.
 	Added []string `json:"added"`
 }
 
-// Change is one entry present in both audits.
+// verdictMissing is the After verdict of an entry missing from the second audit.
+const verdictMissing = "missing"
+
+// Change is one entry of the first audit, compared with the second.
 type Change struct {
 	Key    string `json:"key"`
 	Before Result `json:"before"`
@@ -69,13 +72,26 @@ func Compare(before, after []Result) Diff {
 		}
 	}
 
-	for _, b := range before {
-		if !seen[b.Key()] {
-			d.Removed = append(d.Removed, b.Key())
-		}
-	}
+	d.addMissing(before, seen)
 
 	return d
+}
+
+// addMissing records the entries of before missing from the second audit.
+func (d *Diff) addMissing(before []Result, seen map[string]bool) {
+	for _, b := range before {
+		if seen[b.Key()] {
+			continue
+		}
+
+		// prune only removes versions that were not downloadable.
+		if b.Verdict == VerdictOK {
+			d.Regressions = append(d.Regressions, Change{Key: b.Key(), Before: b, After: Result{Entry: b.Entry, Verdict: verdictMissing}})
+			continue
+		}
+
+		d.Removed = append(d.Removed, b.Key())
+	}
 }
 
 // WriteReport writes a markdown summary of an audit.

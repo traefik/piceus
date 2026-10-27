@@ -71,7 +71,8 @@ func realignCommand() *cli.Command {
 					continue
 				}
 
-				dl, errD := client.Download(ctx, r.Module, r.Version)
+				// Bypass the CDN: the hash recorded must be the one the plugin service serves.
+				dl, errD := client.DownloadUncached(ctx, r.Module, r.Version)
 				if errD != nil {
 					logger.Error().Err(errD).Msg("Download failed")
 					failed++
@@ -80,7 +81,7 @@ func realignCommand() *cli.Command {
 				}
 
 				if dl.Hash != r.ServedHash {
-					logger.Error().Str("audit", r.ServedHash).Str("now", dl.Hash).Msg("The served archive changed since the audit, re-run it")
+					logger.Error().Str("audit", r.ServedHash).Str("now", dl.Hash).Msg("The plugin service serves other bytes than the audit saw, changed since or a stale CDN copy: re-run the audit")
 					failed++
 
 					continue

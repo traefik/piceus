@@ -135,31 +135,12 @@ type Download struct {
 // Download fetches the archive and hashes it, retrying on network and server errors.
 // On failure, Status is the last HTTP status received, 0 if none.
 func (c *Client) Download(ctx context.Context, module, version string) (Download, error) {
-	endpoint := fmt.Sprintf("%s/public/download/%s/%s", c.BaseURL, module, version)
+	return c.download(ctx, fmt.Sprintf("%s/public/download/%s/%s", c.BaseURL, module, version))
+}
 
-	var (
-		dl      Download
-		lastErr error
-	)
-
-	for attempt := range 3 {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
-				return dl, ctx.Err()
-			case <-time.After(time.Duration(attempt) * c.RetryWait):
-			}
-		}
-
-		var retry bool
-
-		dl, retry, lastErr = downloadOnce(ctx, c, endpoint)
-		if lastErr == nil || !retry {
-			return dl, lastErr
-		}
-	}
-
-	return dl, lastErr
+// DownloadUncached is Download with a unique query string, so the CDN forwards it to the plugin service.
+func (c *Client) DownloadUncached(ctx context.Context, module, version string) (Download, error) {
+	return c.download(ctx, fmt.Sprintf("%s/public/download/%s/%s?audit=%s", c.BaseURL, module, version, nonce()))
 }
 
 func downloadOnce(ctx context.Context, c *Client, endpoint string) (Download, bool, error) {
@@ -194,10 +175,32 @@ func downloadOnce(ctx context.Context, c *Client, endpoint string) (Download, bo
 	return dl, false, nil
 }
 
-// Validate calls the validate endpoint with hash and returns the status code.
+// Validate calls the validate endpoint with hash and returns the status code,
+// retrying on network and server errors. A server error left after the retries is returned as an error.
 func (c *Client) Validate(ctx context.Context, module, version, hash string) (int, error) {
+	var status int
+
+	err := c.retry(ctx, func() (bool, error) {
+		var err error
+
+		status, err = validateOnce(ctx, c, module, version, hash)
+		if err != nil {
+			return true, err
+		}
+
+		if status >= http.StatusInternalServerError {
+			return true, fmt.Errorf("validate returned %d", status)
+		}
+
+		return false, nil
+	})
+
+	return status, err
+}
+
+func validateOnce(ctx context.Context, c *Client, module, version, hash string) (int, error) {
 	// A unique query string makes the CDN forward the request to the plugin service.
-	endpoint := fmt.Sprintf("%s/public/validate/%s/%s?audit=%s", c.BaseURL, module, version, strconv.FormatInt(time.Now().UnixNano(), 36))
+	endpoint := fmt.Sprintf("%s/public/validate/%s/%s?audit=%s", c.BaseURL, module, version, nonce())
 
 	req, err := c.newRequest(ctx, endpoint)
 	if err != nil {
@@ -215,6 +218,51 @@ func (c *Client) Validate(ctx context.Context, module, version, hash string) (in
 	_ = resp.Body.Close()
 
 	return resp.StatusCode, nil
+}
+
+func nonce() string {
+	return strconv.FormatInt(time.Now().UnixNano(), 36)
+}
+
+func (c *Client) download(ctx context.Context, endpoint string) (Download, error) {
+	var dl Download
+
+	err := c.retry(ctx, func() (bool, error) {
+		var (
+			retry bool
+			err   error
+		)
+
+		dl, retry, err = downloadOnce(ctx, c, endpoint)
+
+		return retry, err
+	})
+
+	return dl, err
+}
+
+// retry calls fn up to 3 times, while it fails and asks for a retry.
+func (c *Client) retry(ctx context.Context, fn func() (bool, error)) error {
+	var err error
+
+	for attempt := range 3 {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Duration(attempt) * c.RetryWait):
+			}
+		}
+
+		var retry bool
+
+		retry, err = fn()
+		if err == nil || !retry {
+			return err
+		}
+	}
+
+	return err
 }
 
 func (c *Client) newRequest(ctx context.Context, endpoint string) (*http.Request, error) {
