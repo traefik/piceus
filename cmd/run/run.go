@@ -2,6 +2,7 @@ package run
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/piceus/internal/plugin"
+	"github.com/traefik/piceus/pkg/audit"
 	"github.com/traefik/piceus/pkg/client"
 	"github.com/traefik/piceus/pkg/core"
 	"github.com/traefik/piceus/pkg/meter"
@@ -18,6 +20,21 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 )
+
+// goProxyURL is the Go module proxy whose version info pins the commit each version was published from, as in plugin-service.
+const goProxyURL = "https://proxy.golang.org"
+
+// pinnedCommit returns the commit the Go module proxy pinned for a version, empty when it pinned none.
+func pinnedCommit(checker *audit.TagChecker) func(ctx context.Context, module, version string) (string, error) {
+	return func(ctx context.Context, module, version string) (string, error) {
+		commit, err := checker.ProxyCommit(ctx, module, version)
+		if errors.Is(err, audit.ErrNotPinned) {
+			return "", nil
+		}
+
+		return commit, err
+	}
+}
 
 func run(ctx context.Context, cfg Config) error {
 	stopTracer, err := setupTracing(ctx, cfg.Tracing)
@@ -49,7 +66,7 @@ func run(ctx context.Context, cfg Config) error {
 
 	var srcs core.Sources
 	if _, ok := os.LookupEnv(core.PrivateModeEnv); ok {
-		srcs = &sources.GitHub{Client: ghClient.GithubClient()}
+		srcs = &sources.GitHub{Client: ghClient.GithubClient(), PinnedCommit: pinnedCommit(audit.NewTagChecker(goProxyURL, nil))}
 	} else {
 		srcs = &sources.GoProxy{Client: gpClient}
 	}

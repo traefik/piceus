@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/go-github/v57/github"
 	"github.com/mitchellh/mapstructure"
+	"github.com/traefik/piceus/pkg/sources"
 	"github.com/traefik/yaegi/interp"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -61,6 +62,10 @@ func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Rep
 
 	// Get sources
 	err = s.sources.Get(ctx, repository, gop, module.Version{Path: pluginName, Version: latestVersion})
+	if errors.Is(err, sources.ErrPinnedCommit) {
+		return "", nil, fmt.Errorf("%w: %w", errEvaluatorFailure, err)
+	}
+
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get sources: %w", err)
 	}
