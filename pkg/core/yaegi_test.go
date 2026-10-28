@@ -60,7 +60,7 @@ type LocalSources struct {
 	src string
 }
 
-func (s *LocalSources) Get(_ context.Context, _ *github.Repository, gop string, mod module.Version) error {
+func (s *LocalSources) Get(_ context.Context, _ *github.Repository, gop string, mod module.Version, _ string) error {
 	dest := filepath.Join(filepath.Join(gop, "src"), filepath.FromSlash(mod.Path))
 	err := os.MkdirAll(dest, 0o750)
 	if err != nil {

@@ -2,7 +2,6 @@ package run
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -23,18 +22,6 @@ import (
 
 // goProxyURL is the Go module proxy whose version info pins the commit each version was published from, as in plugin-service.
 const goProxyURL = "https://proxy.golang.org"
-
-// pinnedCommit returns the commit the Go module proxy pinned for a version, empty when it pinned none.
-func pinnedCommit(checker *audit.TagChecker) func(ctx context.Context, module, version string) (string, error) {
-	return func(ctx context.Context, module, version string) (string, error) {
-		commit, err := checker.ProxyCommit(ctx, module, version)
-		if errors.Is(err, audit.ErrNotPinned) {
-			return "", nil
-		}
-
-		return commit, err
-	}
-}
 
 func run(ctx context.Context, cfg Config) error {
 	stopTracer, err := setupTracing(ctx, cfg.Tracing)
@@ -65,8 +52,10 @@ func run(ctx context.Context, cfg Config) error {
 	pgClient := plugin.New(cfg.PluginURL)
 
 	var srcs core.Sources
+	var pinned core.PinnedCommit
 	if _, ok := os.LookupEnv(core.PrivateModeEnv); ok {
-		srcs = &sources.GitHub{Client: ghClient.GithubClient(), PinnedCommit: pinnedCommit(audit.NewTagChecker(goProxyURL, nil))}
+		srcs = &sources.GitHub{Client: ghClient.GithubClient()}
+		pinned = audit.NewTagChecker(goProxyURL, nil).ProxyCommit
 	} else {
 		srcs = &sources.GoProxy{Client: gpClient}
 	}
@@ -76,7 +65,7 @@ func run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("creating plugin evaluator: %w", err)
 	}
 
-	scrapper := core.NewScrapper(ghClient.GithubClient(), gpClient, pgClient, cfg.DryRun, srcs, evaluator, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
+	scrapper := core.NewScrapper(ghClient.GithubClient(), gpClient, pgClient, cfg.DryRun, srcs, pinned, evaluator, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
 
 	return scrapper.Run(ctx)
 }

@@ -13,15 +13,15 @@ import (
 
 	"github.com/google/go-github/v57/github"
 	"github.com/mitchellh/mapstructure"
-	"github.com/traefik/piceus/pkg/sources"
 	"github.com/traefik/yaegi/interp"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
 
-func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Repository, latestVersion string, manifest Manifest) (string, []string, error) {
+// verifyYaegiPlugin checks the plugin at latestVersion, its code and go.mod read at ref.
+func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Repository, latestVersion, ref string, manifest Manifest) (string, []string, error) {
 	// Gets module information
-	mod, err := s.getModuleInfo(ctx, repository, latestVersion)
+	mod, err := s.getModuleInfo(ctx, repository, ref)
 	if err != nil {
 		return "", nil, err
 	}
@@ -61,11 +61,7 @@ func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Rep
 	defer func() { _ = os.RemoveAll(gop) }()
 
 	// Get sources
-	err = s.sources.Get(ctx, repository, gop, module.Version{Path: pluginName, Version: latestVersion})
-	if errors.Is(err, sources.ErrPinnedCommit) {
-		return "", nil, fmt.Errorf("%w: %w", errEvaluatorFailure, err)
-	}
-
+	err = s.sources.Get(ctx, repository, gop, module.Version{Path: pluginName, Version: latestVersion}, ref)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get sources: %w", err)
 	}

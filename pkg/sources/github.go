@@ -3,7 +3,6 @@ package sources
 import (
 	"archive/zip"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,19 +14,13 @@ import (
 	"golang.org/x/mod/module"
 )
 
-// ErrPinnedCommit the commit pinned by the Go module proxy could not be read: it is not a plugin problem.
-var ErrPinnedCommit = errors.New("failed to get the commit pinned by the Go module proxy")
-
 // GitHub gets sources from GitHub.
 type GitHub struct {
 	Client *github.Client
-	// PinnedCommit returns the commit the Go module proxy pinned at publication, empty when it pinned none.
-	// plugin-service serves that commit once the tag moved: the sources are read from it, not from the tag.
-	PinnedCommit func(ctx context.Context, module, version string) (string, error)
 }
 
-// Get gets sources.
-func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop string, mod module.Version) error {
+// Get gets sources, from the GitHub zipball of ref.
+func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop string, mod module.Version, ref string) error {
 	// Creates temp archive storage
 
 	rootArchive, err := os.MkdirTemp("", "traefik-plugin-archives")
@@ -38,11 +31,6 @@ func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop str
 	defer func() { _ = os.RemoveAll(rootArchive) }()
 
 	// Gets code (archive)
-
-	ref, err := s.ref(ctx, mod)
-	if err != nil {
-		return err
-	}
 
 	archivePath, err := s.getArchive(ctx, repository, mod.Version, ref, rootArchive)
 
@@ -75,24 +63,6 @@ func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop str
 	}
 
 	return nil
-}
-
-// ref returns the ref to read the sources of mod from: the pinned commit, or the tag when the proxy pinned none.
-func (s *GitHub) ref(ctx context.Context, mod module.Version) (string, error) {
-	if s.PinnedCommit == nil {
-		return mod.Version, nil
-	}
-
-	pinned, err := s.PinnedCommit(ctx, mod.Path, mod.Version)
-	if err != nil {
-		return "", fmt.Errorf("%w: %w", ErrPinnedCommit, err)
-	}
-
-	if pinned == "" {
-		return mod.Version, nil
-	}
-
-	return pinned, nil
 }
 
 func (s *GitHub) getArchive(ctx context.Context, repository *github.Repository, version, ref, rootArchive string) (string, error) {

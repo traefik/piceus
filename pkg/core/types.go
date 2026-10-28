@@ -9,7 +9,7 @@ import (
 
 // Sources gets code sources.
 type Sources interface {
-	Get(ctx context.Context, repository *github.Repository, gop string, mod module.Version) error
+	Get(ctx context.Context, repository *github.Repository, gop string, mod module.Version, ref string) error
 }
 
 // Manifest The plugin manifest.

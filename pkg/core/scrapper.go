@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -75,15 +76,17 @@ type Scrapper struct {
 	searchQueries       []string
 	searchQueriesIssues []string
 
-	sources     Sources
-	evaluator   *Evaluator
-	blacklist   map[string]struct{}
-	skipNewCall map[string]struct{} // temporary approach
-	tracer      oteltrace.Tracer
+	sources      Sources
+	pinnedCommit PinnedCommit // nil when the sources are read at the tag
+	retryWait    time.Duration
+	evaluator    *Evaluator
+	blacklist    map[string]struct{}
+	skipNewCall  map[string]struct{} // temporary approach
+	tracer       oteltrace.Tracer
 }
 
 // NewScrapper creates a new Scrapper instance.
-func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, dryRun bool, sources Sources, evaluator *Evaluator, searchQueries, searchQueriesIssues []string) *Scrapper {
+func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, dryRun bool, sources Sources, pinnedCommit PinnedCommit, evaluator *Evaluator, searchQueries, searchQueriesIssues []string) *Scrapper {
 	return &Scrapper{
 		gh: gh,
 		gp: gp,
@@ -94,8 +97,10 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, d
 		searchQueries:       searchQueries,
 		searchQueriesIssues: searchQueriesIssues,
 
-		sources:   sources,
-		evaluator: evaluator,
+		sources:      sources,
+		pinnedCommit: pinnedCommit,
+		retryWait:    2 * time.Second,
+		evaluator:    evaluator,
 		// blacklist is loaded from plugin-service at the start of each Run.
 		skipNewCall: map[string]struct{}{
 			"github.com/negasus/traefik-plugin-ip2location": {},
@@ -146,8 +151,8 @@ func (s *Scrapper) Run(ctx context.Context) error {
 				continue
 			}
 
-			// The evaluator did not give a result: it is not a plugin problem.
-			if errors.Is(err, errEvaluatorFailure) {
+			// The evaluator or the Go module proxy did not give a result: it is not a plugin problem.
+			if errors.Is(err, errEvaluatorFailure) || errors.Is(err, errPinnedCommit) {
 				span.RecordError(err)
 				continue
 			}
@@ -292,20 +297,39 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		return nil, fmt.Errorf("failed to get the latest tag: %w", err)
 	}
 
-	// Gets readme
-
-	readme, err := s.loadReadme(ctx, repository, latestVersion)
-	if err != nil {
-		span.RecordError(err)
-		return nil, fmt.Errorf("failed to load readme: %w", err)
-	}
-
 	// Gets manifestFile
 
 	manifest, err := s.loadManifest(ctx, repository, latestVersion)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
+	}
+
+	// The code is read at the pinned commit: so are its manifest and readme.
+
+	ref := latestVersion
+	if manifest.Runtime != wasmRuntime {
+		ref, err = s.yaegiRef(ctx, repository, latestVersion)
+		if err != nil {
+			span.RecordError(err)
+			return nil, err
+		}
+
+		if ref != latestVersion {
+			manifest, err = s.loadManifest(ctx, repository, ref)
+			if err != nil {
+				span.RecordError(err)
+				return nil, err
+			}
+		}
+	}
+
+	// Gets readme
+
+	readme, err := s.loadReadme(ctx, repository, ref)
+	if err != nil {
+		span.RecordError(err)
+		return nil, fmt.Errorf("failed to load readme: %w", err)
 	}
 
 	var versions []string
@@ -324,7 +348,7 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 		}
 
 	default:
-		pluginName, versions, err = s.verifyYaegiPlugin(ctx, repository, latestVersion, manifest)
+		pluginName, versions, err = s.verifyYaegiPlugin(ctx, repository, latestVersion, ref, manifest)
 		if err != nil {
 			span.RecordError(err)
 			return nil, err

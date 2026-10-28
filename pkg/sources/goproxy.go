@@ -18,8 +18,8 @@ type GoProxy struct {
 	Client *goproxy.Client
 }
 
-// Get gets sources.
-func (s *GoProxy) Get(_ context.Context, _ *github.Repository, gop string, mod module.Version) error {
+// Get gets sources from the Go module proxy, whose zip is already pinned: ref is ignored.
+func (s *GoProxy) Get(_ context.Context, _ *github.Repository, gop string, mod module.Version, _ string) error {
 	// Creates temp archive storage
 
 	rootArchive, err := os.MkdirTemp("", "traefik-plugin-archives")
