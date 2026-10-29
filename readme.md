@@ -31,6 +31,7 @@ OPTIONS:
 extra:
 
 - `PICEUS_PRIVATE_MODE`: uses GitHub instead of GoProxy.
+  For a public Yaegi plugin, the Go proxy still gives the commit it pinned at publication, the one plugin-service serves: the plugin is read at that commit.
 
 ## Catalog commands
 

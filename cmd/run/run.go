@@ -9,6 +9,7 @@ import (
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/piceus/internal/plugin"
+	"github.com/traefik/piceus/pkg/audit"
 	"github.com/traefik/piceus/pkg/client"
 	"github.com/traefik/piceus/pkg/core"
 	"github.com/traefik/piceus/pkg/meter"
@@ -18,6 +19,9 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 )
+
+// goProxyURL is the Go module proxy whose version info pins the commit each version was published from, as in plugin-service.
+const goProxyURL = "https://proxy.golang.org"
 
 func run(ctx context.Context, cfg Config) error {
 	stopTracer, err := setupTracing(ctx, cfg.Tracing)
@@ -48,8 +52,10 @@ func run(ctx context.Context, cfg Config) error {
 	pgClient := plugin.New(cfg.PluginURL)
 
 	var srcs core.Sources
+	var pinned core.PinnedCommit
 	if _, ok := os.LookupEnv(core.PrivateModeEnv); ok {
 		srcs = &sources.GitHub{Client: ghClient.GithubClient()}
+		pinned = audit.NewTagChecker(goProxyURL, nil).ProxyCommit
 	} else {
 		srcs = &sources.GoProxy{Client: gpClient}
 	}
@@ -59,7 +65,7 @@ func run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("creating plugin evaluator: %w", err)
 	}
 
-	scrapper := core.NewScrapper(ghClient.GithubClient(), gpClient, pgClient, cfg.DryRun, srcs, evaluator, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
+	scrapper := core.NewScrapper(ghClient.GithubClient(), gpClient, pgClient, cfg.DryRun, srcs, pinned, evaluator, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
 
 	return scrapper.Run(ctx)
 }

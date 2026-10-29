@@ -19,8 +19,8 @@ import (
 
 var majorSuffix = regexp.MustCompile(`^v\d+$`)
 
-// errNotPinned the Go module proxy does not know which commit the version was published from.
-var errNotPinned = errors.New("no pinned commit in the proxy info")
+// ErrNotPinned the Go module proxy does not know which commit the version was published from.
+var ErrNotPinned = errors.New("no pinned commit in the proxy info")
 
 // TagCheck compares the commit a tag points at today with the one the Go module proxy pinned at publication.
 type TagCheck struct {
@@ -118,7 +118,7 @@ func (t *TagChecker) ProxyCommit(ctx context.Context, mod, version string) (stri
 
 	var pErr *proxyError
 	if errors.As(err, &pErr) && (pErr.status == http.StatusNotFound || pErr.status == http.StatusGone) {
-		return "", errNotPinned
+		return "", ErrNotPinned
 	}
 
 	if err != nil {
@@ -136,7 +136,7 @@ func (t *TagChecker) ProxyCommit(ctx context.Context, mod, version string) (stri
 	}
 
 	if info.Origin == nil || info.Origin.Hash == "" {
-		return "", errNotPinned
+		return "", ErrNotPinned
 	}
 
 	return info.Origin.Hash, nil
@@ -166,7 +166,7 @@ func (t *TagChecker) Gone(ctx context.Context, entry catalog.Entry) (bool, error
 
 		// Without a pinned commit plugin-service serves the tag; any other error leaves the answer unknown.
 		pinned, err = t.ProxyCommit(ctx, entry.Module, entry.Version)
-		if err != nil && !errors.Is(err, errNotPinned) {
+		if err != nil && !errors.Is(err, ErrNotPinned) {
 			return false, err
 		}
 	}

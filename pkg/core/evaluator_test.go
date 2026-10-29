@@ -419,7 +419,7 @@ func loadFixture(t *testing.T, name string) (Manifest, string) {
 
 	goPath := t.TempDir()
 	source := LocalSources{src: rootDir}
-	err = source.Get(t.Context(), nil, goPath, module.Version{Path: mod.Module.Mod.Path})
+	err = source.Get(t.Context(), nil, goPath, module.Version{Path: mod.Module.Mod.Path}, "")
 	require.NoError(t, err)
 
 	return manifest, goPath

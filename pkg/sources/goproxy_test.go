@@ -21,6 +21,6 @@ func TestGPSources_Get(t *testing.T) {
 
 	t.Chdir(wd)
 
-	err = sources.Get(context.Background(), nil, t.TempDir(), module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"})
+	err = sources.Get(context.Background(), nil, t.TempDir(), module.Version{Path: "github.com/ldez/grignotin", Version: "v0.1.0"}, "v0.1.0")
 	require.NoError(t, err)
 }

@@ -174,7 +174,7 @@ func TestScrapper_store(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
-			scrapper := NewScrapper(nil, nil, test.pgClient, true, nil, nil, nil, nil)
+			scrapper := NewScrapper(nil, nil, test.pgClient, true, nil, nil, nil, nil, nil)
 
 			data := &plugin.Plugin{Name: "test"}
 			err := scrapper.store(context.Background(), data)
@@ -191,7 +191,7 @@ func TestScrapper_loadBlacklist(t *testing.T) {
 		},
 	}
 
-	scrapper := NewScrapper(nil, nil, pgClient, true, nil, nil, nil, nil)
+	scrapper := NewScrapper(nil, nil, pgClient, true, nil, nil, nil, nil, nil)
 
 	require.NoError(t, scrapper.loadBlacklist(context.Background()))
 
@@ -206,7 +206,7 @@ func TestScrapper_loadBlacklist_error(t *testing.T) {
 		},
 	}
 
-	scrapper := NewScrapper(nil, nil, pgClient, true, nil, nil, nil, nil)
+	scrapper := NewScrapper(nil, nil, pgClient, true, nil, nil, nil, nil, nil)
 
 	assert.Error(t, scrapper.loadBlacklist(context.Background()))
 }
@@ -282,7 +282,7 @@ func TestScrapper_Run_pentestV01(t *testing.T) {
 	ghClient.BaseURL, err = url.Parse(server.URL + "/")
 	require.NoError(t, err)
 
-	scrapper := NewScrapper(ghClient, nil, &mockPluginClient{}, false, &LocalSources{src: fixtureDir}, newTestEvaluator(t), []string{"topic:traefik-plugin"}, []string{"author:traefiker"})
+	scrapper := NewScrapper(ghClient, nil, &mockPluginClient{}, false, &LocalSources{src: fixtureDir}, nil, newTestEvaluator(t), []string{"topic:traefik-plugin"}, []string{"author:traefiker"})
 
 	err = scrapper.Run(t.Context())
 	require.NoError(t, err)
@@ -471,7 +471,7 @@ func TestScrapper_process(t *testing.T) {
 	gpClient := goproxy.NewClient("")
 	srcs := &sources.GitHub{Client: ghClient}
 
-	scrapper := NewScrapper(ghClient, gpClient, pgClient, true, srcs, newTestEvaluator(t), []string{"topic:traefik-plugin language:Go archived:false is:public"}, []string{"is:open is:issue is:public author:traefiker"})
+	scrapper := NewScrapper(ghClient, gpClient, pgClient, true, srcs, nil, newTestEvaluator(t), []string{"topic:traefik-plugin language:Go archived:false is:public"}, []string{"is:open is:issue is:public author:traefiker"})
 
 	repository, _, err := ghClient.Repositories.Get(ctx, owner, repo)
 	require.NoError(t, err)
@@ -496,7 +496,7 @@ func TestScrapper_process_all(t *testing.T) {
 	gpClient := goproxy.NewClient("")
 	srcs := &sources.GitHub{Client: ghClient}
 
-	scrapper := NewScrapper(ghClient, gpClient, pgClient, true, srcs, newTestEvaluator(t), []string{"topic:traefik-plugin language:Go archived:false is:public"}, []string{"is:open is:issue is:public author:traefiker"})
+	scrapper := NewScrapper(ghClient, gpClient, pgClient, true, srcs, nil, newTestEvaluator(t), []string{"topic:traefik-plugin language:Go archived:false is:public"}, []string{"is:open is:issue is:public author:traefiker"})
 
 	reposWithExistingIssue, err := scrapper.searchReposWithExistingIssue(ctx)
 	require.NoError(t, err)

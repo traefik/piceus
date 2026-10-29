@@ -19,8 +19,8 @@ type GitHub struct {
 	Client *github.Client
 }
 
-// Get gets sources.
-func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop string, mod module.Version) error {
+// Get gets sources, from the GitHub zipball of ref.
+func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop string, mod module.Version, ref string) error {
 	// Creates temp archive storage
 
 	rootArchive, err := os.MkdirTemp("", "traefik-plugin-archives")
@@ -32,7 +32,7 @@ func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop str
 
 	// Gets code (archive)
 
-	archivePath, err := s.getArchive(ctx, repository, mod.Version, rootArchive)
+	archivePath, err := s.getArchive(ctx, repository, mod.Version, ref, rootArchive)
 
 	defer func() {
 		if archivePath != "" {
@@ -65,8 +65,8 @@ func (s *GitHub) Get(ctx context.Context, repository *github.Repository, gop str
 	return nil
 }
 
-func (s *GitHub) getArchive(ctx context.Context, repository *github.Repository, version, rootArchive string) (string, error) {
-	opts := &github.RepositoryContentGetOptions{Ref: version}
+func (s *GitHub) getArchive(ctx context.Context, repository *github.Repository, version, ref, rootArchive string) (string, error) {
+	opts := &github.RepositoryContentGetOptions{Ref: ref}
 
 	link, _, err := s.Client.Repositories.GetArchiveLink(ctx, repository.GetOwner().GetLogin(), repository.GetName(), github.Zipball, opts, 3)
 	if err != nil {
