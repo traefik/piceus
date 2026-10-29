@@ -145,14 +145,7 @@ func (s *Scrapper) Run(ctx context.Context) error {
 		if err != nil {
 			logger.Error().Err(err).Msg("Failed to import repository")
 
-			errResp := &github.ErrorResponse{}
-			if errors.As(err, &errResp) && errResp.Response.StatusCode >= http.StatusInternalServerError {
-				span.RecordError(err)
-				continue
-			}
-
-			// The evaluator or the Go module proxy did not give a result: it is not a plugin problem.
-			if errors.Is(err, errEvaluatorFailure) || errors.Is(err, errPinnedCommit) {
+			if notPluginProblem(err) {
 				span.RecordError(err)
 				continue
 			}
@@ -287,6 +280,23 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 	return all, nil
 }
 
+// notPluginProblem reports whether err comes from GitHub, the evaluator or the Go module proxy, not from the plugin.
+func notPluginProblem(err error) bool {
+	errResp := &github.ErrorResponse{}
+	rateErr := &github.RateLimitError{}
+	abuseErr := &github.AbuseRateLimitError{}
+
+	switch {
+	case errors.As(err, &errResp) && errResp.Response.StatusCode >= http.StatusInternalServerError:
+		return true
+	// GitHub limited the calls.
+	case errors.As(err, &rateErr), errors.As(err, &abuseErr):
+		return true
+	default:
+		return errors.Is(err, errEvaluatorFailure) || errors.Is(err, errPinnedCommit)
+	}
+}
+
 func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (*plugin.Plugin, error) {
 	ctx, span := s.tracer.Start(ctx, "scrapper_process_"+repository.GetName())
 	defer span.End()
@@ -327,6 +337,13 @@ func (s *Scrapper) process(ctx context.Context, repository *github.Repository) (
 	// Gets readme
 
 	readme, err := s.loadReadme(ctx, repository, ref)
+
+	// A readme added after publication is only at the tag.
+	errResp := &github.ErrorResponse{}
+	if ref != latestVersion && errors.As(err, &errResp) && errResp.Response.StatusCode == http.StatusNotFound {
+		readme, err = s.loadReadme(ctx, repository, latestVersion)
+	}
+
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to load readme: %w", err)

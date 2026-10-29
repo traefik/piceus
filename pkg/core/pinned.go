@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/go-github/v57/github"
@@ -55,7 +56,32 @@ func (s *Scrapper) yaegiRef(ctx context.Context, repository *github.Repository, 
 		return version, nil
 	case err != nil:
 		return "", fmt.Errorf("%w: %w", errPinnedCommit, err)
+	}
+
+	// plugin-service serves the tag once the pinned commit is gone from GitHub.
+	gone, err := s.commitGone(ctx, repository, pinned)
+	if err != nil {
+		return "", err
+	}
+
+	if gone {
+		return version, nil
+	}
+
+	return pinned, nil
+}
+
+// commitGone reports whether GitHub no longer has the commit sha.
+func (s *Scrapper) commitGone(ctx context.Context, repository *github.Repository, sha string) (bool, error) {
+	// A conditional request answered 304 is not counted in the GitHub rate limit.
+	_, resp, err := s.gh.Repositories.GetCommitSHA1(ctx, repository.GetOwner().GetLogin(), repository.GetName(), sha, sha)
+
+	switch {
+	case err == nil, resp != nil && resp.StatusCode == http.StatusNotModified:
+		return false, nil
+	case resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnprocessableEntity):
+		return true, nil
 	default:
-		return pinned, nil
+		return false, fmt.Errorf("check commit %s: %w", sha, err)
 	}
 }
