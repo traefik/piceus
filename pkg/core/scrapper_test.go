@@ -656,3 +656,42 @@ func Test_safeIssueBody(t *testing.T) {
 
 	assert.Equal(t, expected, body)
 }
+
+func TestScrapper_Run_rateLimited(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /search/issues", func(rw http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, rw, http.StatusOK, github.IssuesSearchResult{Total: new(0)})
+	})
+	mux.HandleFunc("GET /search/repositories", func(rw http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, rw, http.StatusOK, github.RepositoriesSearchResult{
+			Total: new(1),
+			Repositories: []*github.Repository{{
+				Name:     new("plugintestsimple"),
+				FullName: new("traefik/plugintestsimple"),
+				Owner:    &github.User{Login: new("traefik")},
+			}},
+		})
+	})
+	mux.HandleFunc("GET /repos/traefik/plugintestsimple/tags", func(rw http.ResponseWriter, _ *http.Request) {
+		rw.Header().Set("X-RateLimit-Remaining", "0")
+		writeJSON(t, rw, http.StatusForbidden, github.ErrorResponse{Message: "API rate limit exceeded"})
+	})
+	mux.HandleFunc("POST /repos/traefik/plugintestsimple/issues", func(rw http.ResponseWriter, _ *http.Request) {
+		t.Error("an issue was opened for a GitHub rate limit")
+		rw.WriteHeader(http.StatusCreated)
+	})
+
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	ghClient := github.NewClient(nil)
+
+	var err error
+	ghClient.BaseURL, err = url.Parse(server.URL + "/")
+	require.NoError(t, err)
+
+	scrapper := NewScrapper(ghClient, nil, &mockPluginClient{}, false, nil, nil, nil, []string{"topic:traefik-plugin"}, []string{"author:traefiker"})
+
+	err = scrapper.Run(t.Context())
+	require.NoError(t, err)
+}
