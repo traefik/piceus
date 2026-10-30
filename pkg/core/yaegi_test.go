@@ -95,3 +95,83 @@ func (s *LocalSources) Get(_ context.Context, _ *github.Repository, gop string, 
 
 	return nil
 }
+
+func TestCheckRepoName(t *testing.T) {
+	testCases := []struct {
+		desc        string
+		repository  *github.Repository
+		moduleName  string
+		manifest    Manifest
+		expectError bool
+	}{
+		{
+			desc: "Fails if repo name is not prefix of module name",
+			repository: &github.Repository{
+				FullName: new("foo/bar"),
+			},
+			moduleName: "github.com/something/wrong",
+			manifest: Manifest{
+				Import: "github.com/foo/bar",
+			},
+			expectError: true,
+		},
+		{
+			desc: "Fails if repo name is not prefix of manifest import",
+			repository: &github.Repository{
+				FullName: new("foo/bar"),
+			},
+			moduleName: "github.com/foo/bar",
+			manifest: Manifest{
+				Import: "github.com/something/wrong",
+			},
+			expectError: true,
+		},
+		{
+			desc: "Succeeds",
+			repository: &github.Repository{
+				FullName: new("foo/bar"),
+			},
+			moduleName: "github.com/foo/bar",
+			manifest: Manifest{
+				Import: "github.com/foo/bar",
+			},
+			expectError: false,
+		},
+		{
+			desc: "Succeeds if repo name contains uppercase characters, but module name and manifest import do not",
+			repository: &github.Repository{
+				FullName: new("FOO/bar"),
+			},
+			moduleName: "github.com/foo/bar",
+			manifest: Manifest{
+				Import: "github.com/foo/bar",
+			},
+			expectError: false,
+		},
+		{
+			desc: "Succeeds with mixed case in both repo name and module name",
+			repository: &github.Repository{
+				FullName: new("Foo/Bar"),
+			},
+			moduleName: "github.com/Foo/Bar",
+			manifest: Manifest{
+				Import: "github.com/Foo/Bar",
+			},
+			expectError: false,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
+
+			err := checkRepoName(test.repository, test.moduleName, test.manifest)
+
+			if test.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
