@@ -2,23 +2,16 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"path"
-	"reflect"
 	"strings"
-	"time"
 
 	"github.com/google/go-github/v57/github"
-	"github.com/mitchellh/mapstructure"
-	"github.com/traefik/yaegi/interp"
 	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/module"
 )
 
-// verifyYaegiPlugin checks the plugin at latestVersion, its code and go.mod read at ref.
+// verifyYaegiPlugin checks the plugin at latestVersion, its go.mod read at ref.
 func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Repository, latestVersion, ref string, manifest Manifest) (string, []string, error) {
 	// Gets module information
 	mod, err := s.getModuleInfo(ctx, repository, ref)
@@ -51,54 +44,8 @@ func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Rep
 		return "", nil, err
 	}
 
-	// Creates temp GOPATH
-	var gop string
-	gop, err = os.MkdirTemp("", "traefik-plugin-gop")
-	if err != nil {
-		return "", nil, fmt.Errorf("%w: failed to create temp GOPATH: %w", errEvaluatorFailure, err)
-	}
-
-	defer func() { _ = os.RemoveAll(gop) }()
-
-	// Get sources
-	err = s.sources.Get(ctx, repository, gop, module.Version{Path: pluginName, Version: latestVersion}, ref)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to get sources: %w", err)
-	}
-
-	// Check Yaegi interface
-	err = s.yaegiCheck(ctx, manifest, gop, pluginName)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to run the plugin with Yaegi: %w", err)
-	}
-
+	// The plugin code is not checked: the manifest is enough.
 	return pluginName, versions, nil
-}
-
-// yaegiCheck runs the plugin code in the sandboxed evaluator process.
-func (s *Scrapper) yaegiCheck(ctx context.Context, manifest Manifest, goPath, moduleName string) error {
-	switch manifest.Type {
-	case typeMiddleware:
-		if manifest.UseUnsafe {
-			// Skip unsafe test
-			return nil
-		}
-		_, skip := s.skipNewCall[moduleName]
-
-		return s.evaluator.Evaluate(ctx, evaluationRequest{
-			Manifest: manifest,
-			WorkDir:  goPath,
-			GoPath:   goPath,
-			SkipNew:  skip,
-		})
-
-	case typeProvider:
-		// TODO yaegi check for provider
-		return nil
-
-	default:
-		return fmt.Errorf("unsupported type: %s", manifest.Type)
-	}
 }
 
 func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Repository, version string) (*modfile.File, error) {
@@ -133,88 +80,6 @@ func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Reposit
 	return mod, nil
 }
 
-func yaegiMiddlewareCheck(goPath string, manifest Manifest, skipNew bool, symbols interp.Exports) error {
-	middlewareName := "test"
-
-	next := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {})
-
-	timeout := 10 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	i := interp.New(interp.Options{GoPath: goPath})
-	if err := i.Use(symbols); err != nil {
-		return fmt.Errorf("load of stdlib symbols: %w", err)
-	}
-
-	_, err := i.EvalWithContext(ctx, fmt.Sprintf(`import %q`, manifest.Import))
-	if err != nil {
-		return fmt.Errorf("the load of the plugin takes too much time(%s), or an error, inside the plugin, occurs during the load: %w", timeout, err)
-	}
-
-	basePkg := manifest.BasePkg
-	if basePkg == "" {
-		basePkg = path.Base(manifest.Import)
-		basePkg = strings.ReplaceAll(basePkg, "-", "_")
-	}
-
-	vConfig, err := i.EvalWithContext(ctx, basePkg+`.CreateConfig()`)
-	if err != nil {
-		return fmt.Errorf("failed to eval `CreateConfig` function: %w", err)
-	}
-
-	err = decodeConfig(vConfig, manifest.TestData)
-	if err != nil {
-		return err
-	}
-
-	fnNew, err := i.EvalWithContext(ctx, basePkg+`.New`)
-	if err != nil {
-		return fmt.Errorf("failed to eval `New` function: %w", err)
-	}
-
-	err = checkFunctionNewSignature(fnNew, vConfig)
-	if err != nil {
-		return fmt.Errorf("the signature of the function `New` is invalid: %w", err)
-	}
-
-	if !skipNew {
-		return callNew(ctx, next, vConfig, middlewareName, fnNew)
-	}
-
-	return nil
-}
-
-func callNew(ctx context.Context, next http.HandlerFunc, vConfig reflect.Value, middlewareName string, fnNew reflect.Value) error {
-	errCh := make(chan error)
-
-	go func() {
-		args := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(next), vConfig, reflect.ValueOf(middlewareName)}
-		results, err := safeFnCall(fnNew, args)
-		if err != nil {
-			errCh <- fmt.Errorf("the function `New` of %s produce a panic: %w", middlewareName, err)
-			return
-		}
-
-		if len(results) > 1 && results[1].Interface() != nil {
-			errCh <- fmt.Errorf("failed to create a new plugin instance: %w", results[1].Interface().(error))
-		}
-
-		_, ok := reflect.TypeAssert[http.Handler](results[0])
-		if !ok {
-			errCh <- fmt.Errorf("invalid handler type: %T", results[0].Interface())
-		}
-		errCh <- nil
-	}()
-
-	select {
-	case err := <-errCh:
-		return err
-	case <-ctx.Done():
-		return fmt.Errorf("the function `New` has failed: %w", ctx.Err())
-	}
-}
-
 func checkRepoName(repository *github.Repository, moduleName string, manifest Manifest) error {
 	repoName := path.Join("github.com", repository.GetFullName())
 
@@ -246,76 +111,4 @@ func checkModuleFile(mod *modfile.File, manifest Manifest) error {
 	}
 
 	return nil
-}
-
-func decodeConfig(vConfig reflect.Value, testData any) error {
-	cfg := &mapstructure.DecoderConfig{
-		DecodeHook:       mapstructure.StringToSliceHookFunc(","),
-		WeaklyTypedInput: true,
-		Result:           vConfig.Interface(),
-	}
-
-	decoder, err := mapstructure.NewDecoder(cfg)
-	if err != nil {
-		return fmt.Errorf("plugin: failed to create configuration decoder: %w", err)
-	}
-
-	err = decoder.Decode(testData)
-	if err != nil {
-		return fmt.Errorf("plugin: failed to decode configuration: %w", err)
-	}
-
-	return nil
-}
-
-func checkFunctionNewSignature(fnNew, vConfig reflect.Value) error {
-	// check in types
-
-	if fnNew.Type().NumIn() != 4 {
-		return fmt.Errorf("invalid input arguments: got %d arguments expected %d", fnNew.Type().NumIn(), 4)
-	}
-
-	if !fnNew.Type().In(0).Implements(reflect.TypeFor[context.Context]()) {
-		return errors.New("invalid input arguments: the 1st argument must have the type context.Context")
-	}
-
-	if !fnNew.Type().In(1).Implements(reflect.TypeFor[http.Handler]()) {
-		return errors.New("invalid input arguments: the 2nd argument must have the type http.Handler")
-	}
-
-	if !fnNew.Type().In(2).AssignableTo(vConfig.Type()) {
-		return errors.New("invalid input arguments: the 3rd argument must have the same type as the Config structure")
-	}
-
-	if fnNew.Type().In(3).Kind() != reflect.String {
-		return errors.New("invalid input arguments: the 4th argument must have the type string")
-	}
-
-	// check out types
-
-	if fnNew.Type().NumOut() != 2 {
-		return fmt.Errorf("invalid output arguments: got %d arguments expected %d", fnNew.Type().NumOut(), 2)
-	}
-
-	if !fnNew.Type().Out(0).Implements(reflect.TypeFor[http.Handler]()) {
-		return errors.New("invalid input arguments: the 1st argument must have the type http.Handler")
-	}
-
-	if !fnNew.Type().Out(1).Implements(reflect.TypeFor[error]()) {
-		return errors.New("invalid input arguments: the 2nd argument must have the type error")
-	}
-
-	return nil
-}
-
-func safeFnCall(fn reflect.Value, args []reflect.Value) (result []reflect.Value, errCall error) {
-	defer func() {
-		if err := recover(); err != nil {
-			errCall = fmt.Errorf("panic during the call of the function: %v", err)
-		}
-	}()
-
-	result = fn.Call(args)
-
-	return result, errCall
 }

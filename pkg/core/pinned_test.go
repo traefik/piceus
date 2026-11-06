@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/traefik/piceus/pkg/audit"
 	"go.opentelemetry.io/otel"
-	"golang.org/x/mod/module"
 )
 
 func TestScrapper_yaegiRef(t *testing.T) {
@@ -138,11 +137,9 @@ func TestScrapper_process_movedTag(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			srcs := &refSources{src: fixtureDir}
-
-			s := NewScrapper(newFakeGitHub(t, test.files, test.readmes), nil, &mockPluginClient{}, true, srcs,
+			s := NewScrapper(newFakeGitHub(t, test.files, test.readmes), nil, &mockPluginClient{}, true,
 				func(context.Context, string, string) (string, error) { return "abc123", nil },
-				newTestEvaluator(t), nil, nil)
+				nil, nil)
 
 			repository := &github.Repository{
 				Name:     new("plugintestsimple"),
@@ -154,25 +151,11 @@ func TestScrapper_process_movedTag(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, p)
 
-			assert.Equal(t, test.ref, srcs.ref)
 			assert.Equal(t, "Plugin Without Unsafe", p.DisplayName)
 			assert.Equal(t, test.readme, p.Readme)
 			assert.Equal(t, "v1.0.0", p.LatestVersion)
 		})
 	}
-}
-
-// refSources records the ref the sources are read from.
-type refSources struct {
-	LocalSources
-
-	ref string
-}
-
-func (s *refSources) Get(ctx context.Context, repository *github.Repository, gop string, mod module.Version, ref string) error {
-	s.ref = ref
-
-	return s.LocalSources.Get(ctx, repository, gop, mod, ref)
 }
 
 // newFakeGitHub serves the tag v1.0.0, files keyed by path@ref and readmes keyed by ref.

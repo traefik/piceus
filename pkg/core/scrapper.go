@@ -76,17 +76,14 @@ type Scrapper struct {
 	searchQueries       []string
 	searchQueriesIssues []string
 
-	sources      Sources
-	pinnedCommit PinnedCommit // nil when the sources are read at the tag
+	pinnedCommit PinnedCommit // nil when the plugin is read at the tag
 	retryWait    time.Duration
-	evaluator    *Evaluator
 	blacklist    map[string]struct{}
-	skipNewCall  map[string]struct{} // temporary approach
 	tracer       oteltrace.Tracer
 }
 
 // NewScrapper creates a new Scrapper instance.
-func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, dryRun bool, sources Sources, pinnedCommit PinnedCommit, evaluator *Evaluator, searchQueries, searchQueriesIssues []string) *Scrapper {
+func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, dryRun bool, pinnedCommit PinnedCommit, searchQueries, searchQueriesIssues []string) *Scrapper {
 	return &Scrapper{
 		gh: gh,
 		gp: gp,
@@ -97,14 +94,9 @@ func NewScrapper(gh *github.Client, gp *goproxy.Client, pgClient pluginClient, d
 		searchQueries:       searchQueries,
 		searchQueriesIssues: searchQueriesIssues,
 
-		sources:      sources,
 		pinnedCommit: pinnedCommit,
 		retryWait:    2 * time.Second,
-		evaluator:    evaluator,
 		// blacklist is loaded from plugin-service at the start of each Run.
-		skipNewCall: map[string]struct{}{
-			"github.com/negasus/traefik-plugin-ip2location": {},
-		},
 		tracer: otel.GetTracerProvider().Tracer("scrapper"),
 	}
 }
@@ -280,7 +272,7 @@ func (s *Scrapper) search(ctx context.Context) ([]*github.Repository, error) {
 	return all, nil
 }
 
-// notPluginProblem reports whether err comes from GitHub, the evaluator or the Go module proxy, not from the plugin.
+// notPluginProblem reports whether err comes from GitHub or the Go module proxy, not from the plugin.
 func notPluginProblem(err error) bool {
 	errResp := &github.ErrorResponse{}
 	rateErr := &github.RateLimitError{}
@@ -293,7 +285,7 @@ func notPluginProblem(err error) bool {
 	case errors.As(err, &rateErr), errors.As(err, &abuseErr):
 		return true
 	default:
-		return errors.Is(err, errEvaluatorFailure) || errors.Is(err, errPinnedCommit)
+		return errors.Is(err, errPinnedCommit)
 	}
 }
 

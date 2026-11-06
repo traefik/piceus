@@ -2,7 +2,6 @@ package run
 
 import (
 	"github.com/ettle/strcase"
-	"github.com/traefik/piceus/pkg/core"
 	"github.com/traefik/piceus/pkg/logger"
 	"github.com/urfave/cli/v2"
 )
@@ -15,7 +14,6 @@ const (
 	flagPluginURL                 = "plugin-url"
 	flagGithubSearchQueries       = "github-search-queries"
 	flagGithubSearchQueriesIssues = "github-search-queries-issues"
-	flagEvaluationTimeout         = "evaluation-timeout"
 
 	flagEnableMetrics   = "enable-metrics"
 	flagMetricsAddress  = "metrics-address"
@@ -80,12 +78,6 @@ func Command() *cli.Command {
 				Usage:   "Github queries used to search issues opened by the bot account",
 				EnvVars: []string{strcase.ToSNAKE(flagGithubSearchQueriesIssues)},
 				Value:   cli.NewStringSlice("is:open is:issue is:public author:traefiker"),
-			},
-			&cli.DurationFlag{
-				Name:    flagEvaluationTimeout,
-				Usage:   "Maximum duration of one plugin evaluation. Below 60s, slow WASM checks are stopped by this timeout.",
-				EnvVars: []string{strcase.ToSNAKE(flagEvaluationTimeout)},
-				Value:   core.DefaultEvaluationTimeout,
 			},
 		},
 		Action: func(cliCtx *cli.Context) error {

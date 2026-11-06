@@ -13,8 +13,6 @@ import (
 	"github.com/traefik/piceus/pkg/client"
 	"github.com/traefik/piceus/pkg/core"
 	"github.com/traefik/piceus/pkg/meter"
-	"github.com/traefik/piceus/pkg/sandbox"
-	"github.com/traefik/piceus/pkg/sources"
 	"github.com/traefik/piceus/pkg/tracer"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -51,21 +49,12 @@ func run(ctx context.Context, cfg Config) error {
 
 	pgClient := plugin.New(cfg.PluginURL)
 
-	var srcs core.Sources
 	var pinned core.PinnedCommit
 	if _, ok := os.LookupEnv(core.PrivateModeEnv); ok {
-		srcs = &sources.GitHub{Client: ghClient.GithubClient()}
 		pinned = audit.NewTagChecker(goProxyURL, nil).ProxyCommit
-	} else {
-		srcs = &sources.GoProxy{Client: gpClient}
 	}
 
-	evaluator, err := core.NewEvaluator(sandbox.Available, core.WithEvaluationTimeout(cfg.EvaluationTimeout))
-	if err != nil {
-		return fmt.Errorf("creating plugin evaluator: %w", err)
-	}
-
-	scrapper := core.NewScrapper(ghClient.GithubClient(), gpClient, pgClient, cfg.DryRun, srcs, pinned, evaluator, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
+	scrapper := core.NewScrapper(ghClient.GithubClient(), gpClient, pgClient, cfg.DryRun, pinned, cfg.GithubSearchQueries, cfg.GithubSearchQueriesIssues)
 
 	return scrapper.Run(ctx)
 }
