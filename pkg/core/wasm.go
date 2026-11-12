@@ -15,6 +15,9 @@ import (
 
 const wasmFile = "plugin.wasm"
 
+// maxZipSize is the maximum size of the release zip archive of a WASM plugin.
+const maxZipSize = 256 << 20
+
 func (s *Scrapper) verifyWASMPlugin(ctx context.Context, repository *github.Repository, latestVersion string, manifest Manifest) (string, []string, error) {
 	pluginName := path.Join("github.com", repository.GetFullName())
 
@@ -75,9 +78,15 @@ func (s *Scrapper) verifyZip(ctx context.Context, owner, repo string, assetID in
 		return fmt.Errorf("failed to download asset: %w", err)
 	}
 
-	body, err := io.ReadAll(asset)
+	defer func() { _ = asset.Close() }()
+
+	body, err := io.ReadAll(io.LimitReader(asset, maxZipSize+1))
 	if err != nil {
 		return fmt.Errorf("failed to read asset body: %w", err)
+	}
+
+	if len(body) > maxZipSize {
+		return fmt.Errorf("zip archive is too large (limit: %d bytes)", maxZipSize)
 	}
 
 	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
@@ -114,7 +123,7 @@ func (s *Scrapper) verifyZip(ctx context.Context, owner, repo string, assetID in
 		return errors.New("failed to find " + manifestFile)
 	}
 
-	// The plugin binary is not run: the manifest is enough.
+	// Only the presence of the files is checked: the manifest of the zip is not read, and the plugin binary is not run.
 	return nil
 }
 

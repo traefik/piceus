@@ -2,14 +2,19 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"path"
 	"strings"
 
 	"github.com/google/go-github/v57/github"
+	"github.com/ldez/grignotin/goproxy"
 	"golang.org/x/mod/modfile"
 )
+
+// errGoProxy is returned when the Go module proxy cannot be read: it is not a plugin problem.
+var errGoProxy = errors.New("failed to read the Go module proxy")
 
 // verifyYaegiPlugin checks the plugin at latestVersion, its go.mod read at ref.
 func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Repository, latestVersion, ref string, manifest Manifest) (string, []string, error) {
@@ -38,14 +43,39 @@ func (s *Scrapper) verifyYaegiPlugin(ctx context.Context, repository *github.Rep
 		return "", nil, err
 	}
 
+	// plugin-service downloads a public plugin from the Go module proxy.
+	// The Go module proxy cannot fetch a private repository: do not send it its name.
+	if !repository.GetPrivate() {
+		err = s.checkProxyVersion(ctx, pluginName, latestVersion)
+		if err != nil {
+			return "", nil, err
+		}
+	}
+
 	// Get versions
 	versions, err := s.getVersions(ctx, repository, pluginName)
 	if err != nil {
 		return "", nil, err
 	}
 
-	// The plugin code is not checked: the manifest is enough.
+	// The plugin code is not checked.
 	return pluginName, versions, nil
+}
+
+// checkProxyVersion checks that the Go module proxy can serve module@version.
+// For example, it cannot serve a v2.0.0 tag when the module path does not end with /v2.
+func (s *Scrapper) checkProxyVersion(ctx context.Context, moduleName, version string) error {
+	_, err := s.gp.GetInfoWithContext(ctx, moduleName, version)
+	if err == nil {
+		return nil
+	}
+
+	var apiErr *goproxy.APIError
+	if errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusNotFound || apiErr.StatusCode == http.StatusGone) {
+		return fmt.Errorf("the Go module proxy cannot serve %s@%s: %s", moduleName, version, apiErr.Message)
+	}
+
+	return fmt.Errorf("%w: %w", errGoProxy, err)
 }
 
 func (s *Scrapper) getModuleInfo(ctx context.Context, repository *github.Repository, version string) (*modfile.File, error) {

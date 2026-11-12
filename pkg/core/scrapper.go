@@ -285,7 +285,7 @@ func notPluginProblem(err error) bool {
 	case errors.As(err, &rateErr), errors.As(err, &abuseErr):
 		return true
 	default:
-		return errors.Is(err, errPinnedCommit)
+		return errors.Is(err, errPinnedCommit) || errors.Is(err, errGoProxy)
 	}
 }
 
