@@ -1,40 +1,38 @@
 package core
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"io"
-	"os"
-	"path/filepath"
+	"net/http"
 	"testing"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/mod/module"
 )
 
-func TestUnsafe(t *testing.T) {
+func TestScrapper_checkProxyVersion(t *testing.T) {
 	testCases := []struct {
-		desc        string
-		fixture     string
-		expectError bool
+		desc          string
+		status        int
+		expectErr     string
+		notPluginProb bool
 	}{
 		{
-			desc:        "Simple plugin should pass",
-			fixture:     "simple",
-			expectError: false,
+			desc:   "the proxy serves the version",
+			status: http.StatusOK,
 		},
 		{
-			desc:        "Simple plugin with unsafe without manifest.unsafe should fail",
-			fixture:     "wrongunsafe",
-			expectError: true,
+			desc:      "the proxy cannot serve the version",
+			status:    http.StatusNotFound,
+			expectErr: "the Go module proxy cannot serve github.com/traefik/plugintest@v2.0.0: 404 Not Found: not found: unknown revision\n",
 		},
-
 		{
-			desc:        "Simple plugin with unsafe",
-			fixture:     "unsafe",
-			expectError: false,
+			desc:      "the version is gone from the proxy",
+			status:    http.StatusGone,
+			expectErr: "the Go module proxy cannot serve github.com/traefik/plugintest@v2.0.0: 410 Gone: not found: unknown revision\n",
+		},
+		{
+			desc:          "the proxy is down",
+			status:        http.StatusBadGateway,
+			notPluginProb: true,
 		},
 	}
 
@@ -42,56 +40,20 @@ func TestUnsafe(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
-			manifest, goPath := loadFixture(t, test.fixture)
+			s := Scrapper{gp: newFakeGoProxy(t, test.status)}
 
-			s := Scrapper{evaluator: newTestEvaluator(t)}
+			err := s.checkProxyVersion(t.Context(), "github.com/traefik/plugintest", "v2.0.0")
 
-			err := s.yaegiCheck(t.Context(), manifest, goPath, "")
-			if test.expectError {
-				require.Error(t, err)
-			} else {
+			switch {
+			case test.notPluginProb:
+				require.ErrorIs(t, err, errGoProxy)
+				assert.True(t, notPluginProblem(err))
+			case test.expectErr != "":
+				require.EqualError(t, err, test.expectErr)
+				assert.False(t, notPluginProblem(err))
+			default:
 				require.NoError(t, err)
 			}
 		})
 	}
-}
-
-type LocalSources struct {
-	src string
-}
-
-func (s *LocalSources) Get(_ context.Context, _ *github.Repository, gop string, mod module.Version, _ string) error {
-	dest := filepath.Join(filepath.Join(gop, "src"), filepath.FromSlash(mod.Path))
-	err := os.MkdirAll(dest, 0o750)
-	if err != nil {
-		return fmt.Errorf("failed to create sources directory: %w", err)
-	}
-
-	dir, err := os.ReadDir(s.src)
-	if err != nil {
-		return fmt.Errorf("failed to read sources directory: %w", err)
-	}
-
-	for _, d := range dir {
-		if d.IsDir() {
-			return errors.New("unexpected directory")
-		}
-
-		newFile, err := os.Create(filepath.Join(dest, d.Name()))
-		if err != nil {
-			return fmt.Errorf("failed to create source file: %w", err)
-		}
-
-		orig, err := os.Open(filepath.Join(s.src, d.Name()))
-		if err != nil {
-			return fmt.Errorf("failed to open source file: %w", err)
-		}
-
-		_, err = io.Copy(newFile, orig)
-		if err != nil {
-			return fmt.Errorf("failed to copy source file: %w", err)
-		}
-	}
-
-	return nil
 }

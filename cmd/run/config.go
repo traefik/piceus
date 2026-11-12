@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/piceus/pkg/meter"
@@ -21,8 +20,6 @@ type Config struct {
 
 	GithubSearchQueries       []string
 	GithubSearchQueriesIssues []string
-
-	EvaluationTimeout time.Duration
 
 	EnableMetrics bool
 	Metrics       meter.Config
@@ -41,7 +38,6 @@ func buildConfig(cliCtx *cli.Context) (Config, error) {
 		DryRun:                    cliCtx.Bool(flagDryRun),
 		GithubSearchQueries:       cliCtx.StringSlice(flagGithubSearchQueries),
 		GithubSearchQueriesIssues: cliCtx.StringSlice(flagGithubSearchQueriesIssues),
-		EvaluationTimeout:         cliCtx.Duration(flagEvaluationTimeout),
 		EnableMetrics:             cliCtx.Bool(flagEnableMetrics),
 		Metrics: meter.Config{
 			Address:     cliCtx.String(flagMetricsAddress),

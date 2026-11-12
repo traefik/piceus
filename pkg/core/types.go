@@ -1,17 +1,5 @@
 package core
 
-import (
-	"context"
-
-	"github.com/google/go-github/v57/github"
-	"golang.org/x/mod/module"
-)
-
-// Sources gets code sources.
-type Sources interface {
-	Get(ctx context.Context, repository *github.Repository, gop string, mod module.Version, ref string) error
-}
-
 // Manifest The plugin manifest.
 type Manifest struct {
 	DisplayName   string         `json:"displayName,omitempty" toml:"displayName,omitempty" yaml:"displayName,omitempty"`

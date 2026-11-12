@@ -12,14 +12,15 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/go-github/v57/github"
+	"github.com/ldez/grignotin/goproxy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/traefik/piceus/pkg/audit"
 	"go.opentelemetry.io/otel"
-	"golang.org/x/mod/module"
 )
 
 func TestScrapper_yaegiRef(t *testing.T) {
@@ -138,11 +139,11 @@ func TestScrapper_process_movedTag(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
-			srcs := &refSources{src: fixtureDir}
+			reads := map[string][]string{}
 
-			s := NewScrapper(newFakeGitHub(t, test.files, test.readmes), nil, &mockPluginClient{}, true, srcs,
+			s := NewScrapper(newFakeGitHubRecording(t, test.files, test.readmes, reads), newFakeGoProxy(t, http.StatusOK), &mockPluginClient{}, true,
 				func(context.Context, string, string) (string, error) { return "abc123", nil },
-				newTestEvaluator(t), nil, nil)
+				nil, nil)
 
 			repository := &github.Repository{
 				Name:     new("plugintestsimple"),
@@ -154,31 +155,53 @@ func TestScrapper_process_movedTag(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, p)
 
-			assert.Equal(t, test.ref, srcs.ref)
 			assert.Equal(t, "Plugin Without Unsafe", p.DisplayName)
 			assert.Equal(t, test.readme, p.Readme)
 			assert.Equal(t, "v1.0.0", p.LatestVersion)
+
+			// go.mod is read at the tag to find the module name, then at the ref to check the plugin.
+			assert.Equal(t, []string{"v1.0.0", test.ref}, reads["go.mod"])
 		})
 	}
 }
 
-// refSources records the ref the sources are read from.
-type refSources struct {
-	LocalSources
+// newFakeGoProxy serves the .info of every module version with the given status code.
+func newFakeGoProxy(t *testing.T, status int) *goproxy.Client {
+	t.Helper()
 
-	ref string
-}
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if !strings.HasSuffix(req.URL.Path, ".info") {
+			t.Errorf("unexpected Go module proxy request: %s", req.URL)
+			rw.WriteHeader(http.StatusNotFound)
 
-func (s *refSources) Get(ctx context.Context, repository *github.Repository, gop string, mod module.Version, ref string) error {
-	s.ref = ref
+			return
+		}
 
-	return s.LocalSources.Get(ctx, repository, gop, mod, ref)
+		if status != http.StatusOK {
+			http.Error(rw, "not found: unknown revision", status)
+			return
+		}
+
+		writeJSON(t, rw, http.StatusOK, map[string]string{"Version": "v1.0.0"})
+	}))
+	t.Cleanup(server.Close)
+
+	return goproxy.NewClient(server.URL)
 }
 
 // newFakeGitHub serves the tag v1.0.0, files keyed by path@ref and readmes keyed by ref.
 // A commit exists when a file is keyed by it, except in the repository gone; the repository down fails the commit check.
 func newFakeGitHub(t *testing.T, files, readmes map[string]string) *github.Client {
 	t.Helper()
+
+	return newFakeGitHubRecording(t, files, readmes, nil)
+}
+
+// newFakeGitHubRecording is newFakeGitHub that also records, in reads when it is not nil, the refs each file is read at.
+func newFakeGitHubRecording(t *testing.T, files, readmes map[string]string, reads map[string][]string) *github.Client {
+	t.Helper()
+
+	var mu sync.Mutex
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /repos/{owner}/{repo}/tags", func(rw http.ResponseWriter, _ *http.Request) {
@@ -204,6 +227,12 @@ func newFakeGitHub(t *testing.T, files, readmes map[string]string) *github.Clien
 		}
 	})
 	mux.HandleFunc("GET /repos/{owner}/{repo}/contents/{path...}", func(rw http.ResponseWriter, req *http.Request) {
+		if reads != nil {
+			mu.Lock()
+			reads[req.PathValue("path")] = append(reads[req.PathValue("path")], req.URL.Query().Get("ref"))
+			mu.Unlock()
+		}
+
 		content, ok := files[req.PathValue("path")+"@"+req.URL.Query().Get("ref")]
 		if !ok {
 			rw.WriteHeader(http.StatusNotFound)
